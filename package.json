@@ -1,0 +1,22 @@
+{
+  "name": "v1",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/ora": "^3.2.0",
+    "@types/signale": "^1.4.7"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.5.0",
+    "boxen": "^8.0.1",
+    "cac": "^7.0.0",
+    "ora": "^9.4.0",
+    "signale": "^1.4.0",
+    "zod": "^4.4.3"
+  }
+}
