@@ -1,12 +1,12 @@
-import { logger } from "../lib/logger";
-import { runDoctor } from "../core/detect";
+import { logger } from "#/utils/logger";
+import { runScan } from "#/core/detect";
 
-export async function doctorCommand(): Promise<void> {
+export async function scanCommand(): Promise<void> {
   logger.info("Detecting System Environment");
 
-  console.log(await runDoctor())
+  console.log(await runScan())
 
-  const env = Object.entries(await runDoctor())
+  const env = Object.entries(await runScan())
     .filter(([_, value]) => value !== null && value !== false)
     .map(([key, _]) => key);
 
