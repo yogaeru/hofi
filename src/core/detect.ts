@@ -21,22 +21,26 @@ export const detectManagers = {
     }
     return null;
   },
-  sudo: async () => {
-    try {
-      await $`sudo -n true`.quiet();
-      return true;
-    } catch {
-      return false;
-    }
-  },
 };
 
+async function isSudo(): Promise<boolean> {
+  try {
+    await $`sudo -n true`.quiet();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-export async function runDoctor() {
+export async function isSudoUser(): Promise<boolean> {
+  return process.env.SUDO_USER !== undefined;
+}
+
+export async function runScan() {
   const [pacman, aurHelper, sudo] = await Promise.all([
     detectManagers.pacman(),
     detectManagers.aurHelper(),
-    detectManagers.sudo(),
+    isSudo(),
   ]);
 
   return {
