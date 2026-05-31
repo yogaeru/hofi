@@ -1,11 +1,11 @@
 import { $ } from "bun";
-import { logger } from "../lib/logger";
-import { runDoctor } from "../core/detect";
+import { logger } from "#/utils/logger";
+import { runScan } from "#/core/detect";
 import {
   getPacmanPackages,
   dryRunPacman,
   installPacmanPackages,
-} from "../backend/pacman";
+} from "#/backend/pacman";
 
 export async function switchCommand(
   dir?: string,
@@ -17,7 +17,7 @@ export async function switchCommand(
     logger.info(`Dry run: not switching to new configuration`);
   }
 
-  const envSystem = await runDoctor();
+  const envSystem = await runScan();
 
   if (!envSystem) {
     logger.error(`No environment system detected`);
@@ -35,6 +35,4 @@ export async function switchCommand(
   const installedPackages = {
     pacman: new Set(pacmanPackages),
   };
-
-  
 }

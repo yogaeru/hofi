@@ -1,5 +1,5 @@
 import { $ } from "bun";
-import { logger } from "../lib/logger";
+import { logger } from "#/utils/logger";
 
 export async function getPacmanPackages(): Promise<string[]> {
   const packageList = await $`pacman -Qqen`.quiet().text();
