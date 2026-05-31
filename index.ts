@@ -1,9 +1,12 @@
 import cac from "cac";
 
-import { logger } from "./src/lib/logger";
-import { doctorCommand } from "./src/commands/doctor";
-import { getPacmanPackages } from "./src/backend/pacman";
-import { getCurrentDirectory } from "./src/utils/pwd";
+import { logger } from "#/utils/logger";
+
+import { scanCommand } from "#/commands/scan";
+import { initCommnad } from "#/commands/init";
+
+import { getPacmanPackages } from "#/backend/pacman";
+import { getCurrentDirectory } from "#/utils/path";
 
 const hofiCli = cac("hofi")
   .version("0.1");
@@ -11,7 +14,7 @@ const hofiCli = cac("hofi")
 hofiCli
   .command("doctor", "Detect system environment")
   .action(async () => {
-    await doctorCommand();
+    await scanCommand();
     const packages = await getPacmanPackages();
     logger.info("Pacman packages:");
     console.log(packages.join("\n"));
@@ -22,7 +25,7 @@ hofiCli
 hofiCli
   .command("init", "Initialize a new hofi project with a template")
   .action(async () => {
-    
+    await initCommnad();
   });
 
 // ---------------- SWITCH ----------------------
