@@ -1,8 +1,11 @@
 {
-  "name": "v1",
+  "name": "hofi",
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun run index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/ora": "^3.2.0",
