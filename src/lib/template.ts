@@ -21,6 +21,11 @@ pacman = [
 aur = [
   ${aurPackagesInstalled.map((p) => `"${p}"`).join(",\n  ")}
 ]
+
+[sources]
+include = [
+  "./mimeapps.toml",
+]
 `;
   return CONFIG_TOML_PACKAGES_TEMPLATE;
 };
@@ -45,18 +50,18 @@ export async function configMimeAppsTemplate() {
   const defaultApplicationsConfig = Object.entries(
     mimeAppsList.defaultApplications,
   )
-    .map(([key, value]) => `${key}="${value}"`)
+    .map(([key, value]) => `"${key}"="${value}"`)
     .join("\n");
 
   const addedAssociationsConfig = Object.entries(mimeAppsList.addedAssociations)
-    .map(([key, value]) => `${key}="${value.join(",")}"`)
+    .map(([key, value]) => `"${key}"="${value.join(",")}"`)
     .join("\n");
 
   const CONFIG_TOML_MIME_APPS_TEMPLATE = `
-[Default Applications]
+[default.mime.defaultApplications]
 ${defaultApplicationsConfig}
 
-[Added Associations]
+[default.mime.addedAssociations]
 ${addedAssociationsConfig}
 `;
   return CONFIG_TOML_MIME_APPS_TEMPLATE;
