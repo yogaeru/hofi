@@ -66,3 +66,20 @@ ${addedAssociationsConfig}
 `;
   return CONFIG_TOML_MIME_APPS_TEMPLATE;
 }
+
+/**
+ * Generates Symlink configuration template based on the user's symlinks.
+ * @returns The Symlink configuration template as a string.
+ */
+export const configSymlinkTemplate = (symlinks: Record<string, string>): string => {
+  const symlinkEntries = Object.entries(symlinks);
+  const symlinkConfig = symlinkEntries
+    .map(([target, source]) => `"${target}" = "${source}"`)
+    .join("\n");
+
+  const CONFIG_TOML_SYMLINK_TEMPLATE = `
+[mkSymlink]
+${symlinkConfig}
+`;
+  return CONFIG_TOML_SYMLINK_TEMPLATE;
+};
