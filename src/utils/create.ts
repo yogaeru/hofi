@@ -27,3 +27,14 @@ export async function createFileConfig(data: any, path?:string) {
     logger.error(String(e));
   }
 }
+
+export async function createFile(data: any, path: string) {
+  logger.info(`Creating New File in ${path}`);
+  
+  try {
+    await Bun.write(path, data);
+    logger.success(`File created successfully at ${path}`);
+  } catch (e) {
+    logger.error(String(e));
+  }
+}
