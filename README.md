@@ -1,15 +1,1 @@
-# v1
-
-To install dependencies:
-
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.3.14. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+**hofi** is a declarative orchestration tool for Arch Linux that uses TOML-based config files to manage system state — installing pacman packages, AUR packages, symlinks, and MIME application defaults via a single `switch` command. It runs on Bun and validates config with Zod.
