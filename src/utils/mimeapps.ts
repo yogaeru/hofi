@@ -3,6 +3,11 @@ export interface MimeAppsConfig {
   addedAssociations: Record<string, string[]>;
 }
 
+export interface MimeApps {
+  defaultApplications: Record<string, string>;
+  addedAssociations: Record<string, string>;
+}
+
 /**
  * Parses a mimeapps.list file into a structured object
  * @param filePath - Path to the mimeapps.list file
@@ -104,4 +109,33 @@ export async function parseMimeAppsMerged(
 ): Promise<Record<string, string>> {
   const config = await parseMimeApps(filePath);
   return mergeApplications(config);
+}
+
+export function serializeMimeApps(mimeapps: MimeApps): string {
+  const lines: string[] = [];
+
+  
+  if (Object.keys(mimeapps.defaultApplications).length > 0) {
+    lines.push("[Default Applications]");
+
+    for (const [mime, desktop] of Object.entries(
+      mimeapps.defaultApplications,
+    )) {
+      lines.push(`${mime}=${desktop}`);
+    }
+
+    lines.push("");
+  }
+
+  if (Object.keys(mimeapps.addedAssociations).length > 0) {
+    lines.push("[Added Associations]");
+
+    for (const [mime, desktop] of Object.entries(mimeapps.addedAssociations)) {
+      lines.push(`${mime}=${desktop};`);
+    }
+
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }
