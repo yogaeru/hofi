@@ -58,10 +58,10 @@ export async function configMimeAppsTemplate() {
     .join("\n");
 
   const CONFIG_TOML_MIME_APPS_TEMPLATE = `
-[default.mime.defaultApplications]
+[defaults.mime.defaultApplications]
 ${defaultApplicationsConfig}
 
-[default.mime.addedAssociations]
+[defaults.mime.addedAssociations]
 ${addedAssociationsConfig}
 `;
   return CONFIG_TOML_MIME_APPS_TEMPLATE;
@@ -71,7 +71,9 @@ ${addedAssociationsConfig}
  * Generates Symlink configuration template based on the user's symlinks.
  * @returns The Symlink configuration template as a string.
  */
-export const configSymlinkTemplate = (symlinks: Record<string, string>): string => {
+export const configSymlinkTemplate = async (
+  symlinks: Record<string, string>,
+) => {
   const symlinkEntries = Object.entries(symlinks);
   const symlinkConfig = symlinkEntries
     .map(([target, source]) => `"${target}" = "${source}"`)
