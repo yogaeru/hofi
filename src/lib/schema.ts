@@ -18,12 +18,15 @@ export const ConfigSchema = z
       .partial()
       .optional(),
 
-    default: z
+    defaults: z
       .object({
         apps: z
           .object({
             browser: z.string(),
             editor: z.string(),
+            video: z.string(),
+            image: z.string(),
+            audio: z.string(),
           })
           .partial(),
 
