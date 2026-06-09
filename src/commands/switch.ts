@@ -1,7 +1,12 @@
 import { logger } from "#/utils/logger";
 import { createFile } from "#/utils/create";
 import { getHomeDirectory } from "#/utils/path";
-import { type MimeApps, serializeMimeApps } from "#/utils/mimeapps";
+import {
+  type MimeApps,
+  type DefaultMimeApp,
+  serializeMimeApps,
+  resolveDefaultMimeApp,
+} from "#/utils/mimeapps";
 
 import { runScan } from "#/core/detect";
 import { createSymlink } from "#/core/symlink";
@@ -11,7 +16,18 @@ import type { Config } from "#/lib/schema";
 import { dryRunPacman, installPacmanPackages } from "#/backend/pacman";
 
 import { validateCommand } from "./validate";
+import {
+  mountDisk,
+  type MountDiskConfig,
+  type MountDiskOptions,
+} from "#/core/mount";
 
+/**
+ * Switches to a new hofi configuration.
+ * @param dir Directory to switch to.
+ * @param options Options for the switch command.
+ * @returns A promise that resolves when the switch is complete.
+ */
 export async function switchCommand(
   dir?: string,
   options?: { dryRun?: boolean },
@@ -46,14 +62,14 @@ export async function switchCommand(
   }
 
   // Destructure config fields
-  const { packages, mkSymlink, defaults } = parsedConfig;
+  const { packages, mkSymlink, defaults, diskMount} = parsedConfig;
 
   if (mkSymlink) {
     try {
       await Promise.all(
-        Object.entries(mkSymlink).map(async ([target, symlink]) => {
-          await createSymlink(target, symlink);
-        }),
+        Object.entries(mkSymlink).map(
+          async ([target, symlink]) => await createSymlink(target, symlink),
+        ),
       );
       logger.info("Succes created Symlinks");
     } catch (e) {
@@ -63,28 +79,39 @@ export async function switchCommand(
 
   if (defaults) {
     const { apps, mime } = defaults;
-    let resultMimeApps: MimeApps = {} as MimeApps;
 
-    if (apps) {
-    }
+    const defaultApps: DefaultMimeApp = apps
+      ? await resolveDefaultMimeApp(apps)
+      : {};
 
-    if (mime) {
-      const { defaultApplications, addedAssociations } = mime;
+    const resultMimeApps: MimeApps = {
+      defaultApplications: {
+        ...(mime?.defaultApplications ?? {}),
+        ...defaultApps,
+      },
+      addedAssociations: {
+        ...(mime?.addedAssociations ?? {}),
+      },
+    };
 
-      if (defaultApplications)
-        resultMimeApps = { ...resultMimeApps, defaultApplications };
-
-      if (addedAssociations)
-        resultMimeApps = { ...resultMimeApps, addedAssociations };
-    }
-
+    // Serialize and save the result
     const serializedResultMimeApps = serializeMimeApps(resultMimeApps);
 
+    console.log("[INFO] result:", resultMimeApps);
     console.log(`[INFO] Result: `, serializedResultMimeApps);
     await createFile(
       serializedResultMimeApps,
       `${HOME_PATH}/.config/mimeapps2.list`,
     );
+  }
+
+  if (diskMount) {
+    try {
+      await mountDisk(diskMount);
+      logger.info("Successfully mounted disk");
+    } catch (e) {
+      logger.error(`Failed to mount disk: ${String(e)}`);
+    }
   }
 
   if (packages) {
