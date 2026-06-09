@@ -123,10 +123,13 @@ export function serializeMimeApps(mimeapps: MimeApps): string {
 
 /**
  * Mapping default app config into a mimeapps.list file format
- * @param defaultApp
+ * @param defaultApp A partial object representing the default app configuration
  * @returns A string representing the mimeapps.list file content
  */
-export async function resolveDefaultMimeApp(defaultApp: DefaultMimeApp) {
+export async function resolveDefaultMimeApp(
+  defaultApp: DefaultMimeApp,
+  format: "object" | "string" = "object",
+) {
   const mimeGroups = {
     browser: [
       "x-scheme-handler/http",
@@ -170,16 +173,31 @@ export async function resolveDefaultMimeApp(defaultApp: DefaultMimeApp) {
     ],
   };
 
-  // Result Lines
-  const mimeAppLines: string[] = ["[Default Applications]"];
+  if (format === "string") {
+    // Result Lines
+    const mimeAppLines: string[] = ["[Default Applications]"];
 
-  for (const [category, app] of Object.entries(defaultApp)) {
-    if (!app) continue;
-    mimeAppLines.push(`#${category}`);
-    for (const mime of mimeGroups[category as keyof typeof mimeGroups]) {
-      mimeAppLines.push(`${mime}=${app}`);
+    for (const [category, app] of Object.entries(defaultApp)) {
+      if (!app) continue;
+      mimeAppLines.push(`#${category}`);
+      for (const mime of mimeGroups[category as keyof typeof mimeGroups]) {
+        mimeAppLines.push(`${mime}=${app}`);
+      }
     }
+
+    return mimeAppLines.join("\n");
   }
 
-  return mimeAppLines.join("\n");
+  if (format === "object") {
+    // Result Object
+    const mimeAppObject: any = {};
+
+    for (const [category, app] of Object.entries(defaultApp)) {
+      if (!app) continue;
+      for (const mime of mimeGroups[category as keyof typeof mimeGroups]) {
+        mimeAppObject[mime] = app;
+      }
+    }
+    return mimeAppObject;
+  }
 }
