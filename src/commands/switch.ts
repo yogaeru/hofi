@@ -9,18 +9,12 @@ import {
 } from "#/utils/mimeapps";
 
 import { runScan } from "#/core/detect";
-import { createSymlink } from "#/core/symlink";
+import { mountDisk } from "#/core/mount";
+import { mkSymlinkConfig } from "#/core/symlink";
 
 import type { Config } from "#/lib/schema";
-
-import { dryRunPacman, installPacmanPackages } from "#/backend/pacman";
-
 import { validateCommand } from "./validate";
-import {
-  mountDisk,
-  type MountDiskConfig,
-  type MountDiskOptions,
-} from "#/core/mount";
+import { dryRunPacman, installPacmanPackages } from "#/backend/pacman";
 
 /**
  * Switches to a new hofi configuration.
@@ -62,18 +56,25 @@ export async function switchCommand(
   }
 
   // Destructure config fields
-  const { packages, mkSymlink, defaults, diskMount} = parsedConfig;
+  const { packages, mkSymlink, defaults, diskMount } = parsedConfig;
 
   if (mkSymlink) {
     try {
-      await Promise.all(
-        Object.entries(mkSymlink).map(
-          async ([target, symlink]) => await createSymlink(target, symlink),
-        ),
-      );
+      await mkSymlinkConfig(mkSymlink);
       logger.info("Succes created Symlinks");
     } catch (e) {
       logger.error(String(e));
+      process.exit(1);
+    }
+  }
+
+  if (diskMount) {
+    try {
+      await mountDisk(diskMount);
+      logger.info("Successfully mounted disk");
+    } catch (e) {
+      logger.error(`Failed to mount disk: ${String(e)}`);
+      process.exit(1);
     }
   }
 
@@ -97,21 +98,12 @@ export async function switchCommand(
     // Serialize and save the result
     const serializedResultMimeApps = serializeMimeApps(resultMimeApps);
 
-    console.log("[INFO] result:", resultMimeApps);
-    console.log(`[INFO] Result: `, serializedResultMimeApps);
+    // console.log("[INFO] result:", resultMimeApps);
+    // console.log(`[INFO] Result: `, serializedResultMimeApps);
     await createFile(
       serializedResultMimeApps,
       `${HOME_PATH}/.config/mimeapps2.list`,
     );
-  }
-
-  if (diskMount) {
-    try {
-      await mountDisk(diskMount);
-      logger.info("Successfully mounted disk");
-    } catch (e) {
-      logger.error(`Failed to mount disk: ${String(e)}`);
-    }
   }
 
   if (packages) {
