@@ -1,7 +1,9 @@
 # dependencies (bun install)
 node_modules
 
+# Code editor config
 .vscode
+.zed
 
 # tests
 tests
