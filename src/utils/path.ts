@@ -28,7 +28,7 @@ export async function getHomeDirectory(): Promise<string> {
  */
 export async function isDirectoryExists(path: string): Promise<boolean> {
   try {
-    await $`test -d ${path}`;
+    await $`[ -d ${path} ]`;
     return true;
   } catch {
     return false;
@@ -43,7 +43,7 @@ export async function isDirectoryExists(path: string): Promise<boolean> {
  */
 export async function isFileExists(path: string): Promise<boolean> {
   try {
-    await $`test -f ${path}`;
+    await $`[ -f ${path} ]`;
     return true;
   } catch {
     return false;
@@ -51,15 +51,36 @@ export async function isFileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Creates a backup of a directory by appending `.bak` to its name.
- *
- * @param path The directory path to back up.
- * @returns The path to the backup directory.
+ * Checks if a path exists.
+ * @param path
+ * @returns
  */
-export async function backupDirectory(path: string) {
+export async function exists(path: string): Promise<boolean> {
+  try {
+    await $`[ -e ${path} ]`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Archives a path by creating a backup of it and moving it to a `.bak` suffixed path.
+ *
+ * @param path The path to back up.
+ * @returns The path to the .
+ */
+export async function createBackupConfig(path: string) {
   const backupPath = `${path}.bak`;
-  await $`mv -r ${path} ${backupPath}`;
-  return backupPath;
+  const existPath = await exists(backupPath);
+  if (existPath) return "";
+
+  try {
+    await $`mv ${path} ${backupPath}`;
+    return backupPath;
+  } catch {
+    return "";
+  }
 }
 
 /**
