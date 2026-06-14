@@ -83,7 +83,7 @@ class Logger {
    *
    * @param message The message or error to log.
    */
-  error(message: string | Error) {
+  error(message: string | Error | unknown) {
     this.signale.error(message);
   }
 
