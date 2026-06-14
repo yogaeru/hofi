@@ -49,7 +49,17 @@ export const ConfigSchema = z
       z.object({
         description: z.string(),
         uuid: z.string(),
-        type: z.string(),
+        type: z.enum([
+          "ext4",
+          "btrfs",
+          "xfs",
+          "f2fs",
+          "vfat",
+          "exfat",
+          "ntfs3",
+          "ntfs",
+          "tmpfs",
+        ]),
         options: z.array(z.string()),
         wantedBy: z.string(),
       }),
