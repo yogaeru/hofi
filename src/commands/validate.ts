@@ -1,26 +1,39 @@
+import { logger } from "#/utils/logger";
 import { parseConfigTOML } from "#/utils/parser";
 import { ConfigSchema, type Config } from "#/lib/schema";
+import {
+  validateSymlink,
+  validateMountDisk,
+  validatePackages,
+} from "#/utils/validation";
 
-export async function validateCommand(): Promise<Config | undefined> {
+/**
+ * Validates the configuration file at the given path, or the default path if none is provided.
+ * @param path
+ * @throws {Error} If validation fails.
+ * @returns The parsed configuration object if validation succeeds.
+ */
+export async function validateCommand(
+  path?: string,
+): Promise<Config | undefined> {
   try {
-    const configTOML = await parseConfigTOML("hofi/generated/config.toml");
+    const configPath = path ?? "hofi/generated/config.toml";
+    const configTOML = await parseConfigTOML(configPath);
+
     const result: Config = ConfigSchema.parse(configTOML);
 
-    console.log("[INFO] config: ", configTOML);
-    console.log("[INFO] result: ", result);
-    //
-    for (const [key, value] of Object.entries(result)) {
-      console.log(`[INFO] ${key}`);
-      if (typeof value === "object") {
-        for (const [subKey, subValue] of Object.entries(value)) {
-          console.log(`[INFO] -- ${subKey}`);
-        }
-      }
-    }
+    const { mkSymlink, diskMount, packages } = result;
 
-    console.log("[INFO] validation successful, no errors founds");
+    await Promise.all([
+      validateSymlink(mkSymlink),
+      validateMountDisk(diskMount),
+      validatePackages(packages?.pacman, "pacman"),
+    ]);
+
+    logger.info("Validation successful, no errors founds");
     return result;
   } catch (error) {
-    console.error("[ERROR] ", error);
+    logger.error(String(error));
+    // console.log(error)
   }
 }
