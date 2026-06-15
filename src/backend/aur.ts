@@ -1,4 +1,6 @@
 import { $ } from "bun";
+import { logger } from "#/utils/logger";
+import { spawnInteractive } from "#/utils/spawn";
 
 /**
  * Gets the list of AUR packages installed on the system.
@@ -9,21 +11,37 @@ export async function getAurPackages() {
   return result.split("\n").filter(Boolean).sort();
 }
 
-export async function installAurPackages(packages: string[]) {
+export async function dryRunAurPackages(packages: Set<string>) {
+  logger.info(
+    `Dry run: would install AUR packages:\n${[...packages].join("\n   - ")}`,
+  );
+}
+
+/**
+ * Install AUR packages on the system.
+ * @param packages
+ * @param options
+ * @returns
+ */
+export async function installAurPackages(packages: Set<string>) {
+  if (packages.size === 0) return;
+
+  await spawnInteractive(
+    ["paru", "-S", "--noconfirm", "--needed", ...packages],
+    "Install AUR packages failed",
+  );
+}
+
+/**
+ * Remove AUR packages from the system.
+ * @param packages
+ * @returns
+ */
+export async function removeAurPackages(packages: string[]) {
   if (packages.length === 0) return;
 
-  const installAur = Bun.spawn(
-    ["paru", "-S", "--noconfirm", "--needed", ...packages],
-    {
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "inherit",
-    },
+  await spawnInteractive(
+    ["paru", "-R", "--noconfirm", ...packages],
+    "Remove AUR packages failed",
   );
-  const exitCode = await installAur.exited;
-  if (exitCode !== 0) {
-    throw new Error(
-      `AUR package installation failed with exit code ${exitCode}`,
-    );
-  }
 }
