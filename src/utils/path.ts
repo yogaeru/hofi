@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import { mkdir, symlink, rename } from "node:fs/promises";
 
 /**
  * Gets the current working directory.
@@ -99,4 +100,19 @@ export async function resolvePath(path: string): Promise<string> {
     return path.replace(".", currentDirectory);
   }
   return path;
+}
+/**
+ * Gets the path to the configuration file within a given directory.
+ * @param path The directory path to check for the configuration file.
+ * @returns The path to the configuration file if it exists, otherwise throws an error.
+ */
+export async function getConfigPath(path: string): Promise<string> {
+  const resolvedPath: string = await resolvePath(path);
+  const isPathExist: boolean = await exists(resolvedPath);
+  if (!isPathExist) {
+    throw new Error(`Path does not exist: ${resolvedPath}`);
+  }
+  console.log(`Resolved path: ${resolvedPath}`);
+  const configPath = `${resolvedPath}/config.toml`;
+  return configPath;
 }
