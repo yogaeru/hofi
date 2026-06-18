@@ -2,53 +2,79 @@ import { Signale, type SignaleOptions } from "signale";
 import ora, { type Ora } from "ora";
 import boxen from "boxen";
 
+type enumSignale = "info" | "success" | "warn" | "error" | "add" | "remove";
+
+const configSignale = {
+  displayFilename: false,
+  displayBadge: true,
+  displayLabel: true,
+  displayScope: true,
+  displayTimestamp: true,
+};
+
+const typesSignale = {
+  info: {
+    badge: "",
+    color: "blue",
+    label: "[INFO]",
+    logLevel: "info",
+  },
+  success: {
+    badge: "",
+    color: "green",
+    label: "[SUCCESS]",
+    logLevel: "info",
+  },
+  warn: {
+    badge: "",
+    color: "yellow",
+    label: "[WARN]",
+    logLevel: "warn",
+  },
+  error: {
+    badge: "",
+    color: "red",
+    label: "[ERROR]",
+    logLevel: "error",
+  },
+};
+
+const signaleCompactOptions = {
+  config: {
+    ...configSignale,
+    displayTimestamp: false,
+  },
+  types: {
+    add: {
+      badge: " ",
+      color: "green",
+      label: "[A.]",
+      logLevel: "info",
+    },
+    remove: {
+      badge: " ",
+      color: "red",
+      label: "[R.]",
+      logLevel: "info",
+      displayTimestamp: false,
+    },
+  },
+};
+
 class Logger {
-  private signale: Signale;
+  private signale: Signale<enumSignale>;
+  private signaleCompact: Signale<enumSignale>;
   private spinner: Ora = ora();
 
-  private readonly options: SignaleOptions<
-    "info" | "success" | "warn" | "error"
-  > = {
+  private readonly options: SignaleOptions<enumSignale> = {
     stream: process.stdout,
-    config: {
-      displayBadge: false,
-      displayLabel: true,
-      displayScope: false,
-      displayTimestamp: true,
-    },
-    types: {
-      info: {
-        badge: "",
-        color: "blue",
-        label: "[INFO]",
-        logLevel: "info",
-      },
-
-      success: {
-        badge: "",
-        color: "green",
-        label: "[SUCCESS]",
-        logLevel: "info",
-      },
-
-      warn: {
-        badge: "",
-        color: "yellow",
-        label: "[WARN]",
-        logLevel: "warn",
-      },
-
-      error: {
-        badge: "",
-        color: "red",
-        label: "[ERROR]",
-        logLevel: "error",
-      },
-    },
+    config: configSignale,
+    types: typesSignale,
   };
 
   constructor() {
     this.signale = new Signale(this.options);
+    this.signaleCompact = new Signale(signaleCompactOptions);
   }
 
   /**
@@ -88,11 +114,27 @@ class Logger {
   }
 
   /**
+   * Logs an add message.
+   *
+   * @param message The message to log.
+   */
+  add(message: string) {
+    this.signaleCompact.add(message);
+  }
+
+  /**
+   * Removes the spinner.
+   */
+  remove(message: string) {
+    this.signaleCompact.remove(message);
+  }
+
+  /**
    * Starts the spinner with the provided text.
    *
    * @param text The spinner text.
    */
-  start(text: string) {
+  spinStart(text: string) {
     this.spinner.start(text);
   }
 
@@ -101,14 +143,14 @@ class Logger {
    *
    * @param text The new spinner text.
    */
-  update(text: string) {
+  spinUpdate(text: string) {
     this.spinner.text = text;
   }
 
   /**
    * Stops the spinner.
    */
-  stop() {
+  spinStop() {
     this.spinner.stop();
   }
 
