@@ -44,7 +44,7 @@ export const ConfigSchema = z
       z.string(), // target path
     ),
 
-    diskMount: z.record(
+    mountDrive: z.record(
       z.string(), // mount point (mis. "/mnt/data")
       z.object({
         description: z.string(),
@@ -64,9 +64,14 @@ export const ConfigSchema = z
         wantedBy: z.string(),
       }),
     ),
-    sources: z.object({
-      include: z.array(z.string()),
-    }),
+    includes: z.array(z.string()),
+    symlink: z.record(
+      z.string(),
+      z.object({
+        source: z.string(),
+        target: z.string(),
+      }),
+    ),
   })
   .partial();
 
