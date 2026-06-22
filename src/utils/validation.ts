@@ -48,18 +48,29 @@ export async function validateSymlink(config: SymlinkConfig | undefined) {
  */
 export async function validatePackages(
   packages: string[] | undefined,
-  packageManager: "pacman" | "yay" | "paru",
+  packageManager: "pacman" | "yay" | "paru" | "flatpak",
 ): Promise<void> {
   if (!packages) return;
 
   const errorMsg: string[] = [];
 
-  const repoPackages: string = await $`${packageManager} -Slq`.quiet().text();
-  const packagesSet = new Set(repoPackages.split("\n"));
+  if (packageManager === "flatpak") {
+    const remotePackages: string =
+      await $`flatpak remote-ls flathub --columns=application`.quiet().text();
+    const packagesSet = new Set(remotePackages.split("\n").filter(Boolean));
 
-  for (const name of packages) {
-    const packageExists: boolean = packagesSet.has(name.trim());
-    if (!packageExists) errorMsg.push(` -> ${name}`);
+    for (const name of packages) {
+      const packageExists: boolean = packagesSet.has(name.trim());
+      if (!packageExists) errorMsg.push(` -> ${name}`);
+    }
+  } else {
+    const repoPackages: string = await $`${packageManager} -Slq`.quiet().text();
+    const packagesSet = new Set(repoPackages.split("\n"));
+
+    for (const name of packages) {
+      const packageExists: boolean = packagesSet.has(name.trim());
+      if (!packageExists) errorMsg.push(` -> ${name}`);
+    }
   }
 
   if (errorMsg.length > 0) {

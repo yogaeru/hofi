@@ -1,39 +1,54 @@
-import { logger } from "#/utils/logger";
-import { createFile } from "#/utils/create";
+import { abort } from "#/utils/abort";
+import { writeFile } from "#/utils/write";
 import {
-  resolvePath,
-  getHomeDirectory,
+  diffInstalledAurPackages,
+  diffInstalledFlatpakSystemPackages,
+  diffInstalledFlatpakUserPackages,
+  diffInstalledPacmanPackages,
+  printDiffResult,
+  type DiffResult,
+} from "#/utils/diff";
+import { logger } from "#/utils/logger";
+import {
   createBackupConfig,
   exists,
   getConfigPath,
+  getHomeDirectory,
+  resolvePath,
 } from "#/utils/path";
-import {
-  type MimeApps,
-  type DefaultMimeApp,
-  serializeMimeApps,
-  resolveDefaultMimeApp,
-} from "#/utils/mimeapps";
 
 import { runScan } from "#/core/detect";
+import {
+  resolveDefaultMimeApp,
+  serializeMimeApps,
+  type MimeApps,
+} from "#/core/mimeapps";
 import { mountDisk } from "#/core/mount";
 import { mkSymlinkConfig } from "#/core/symlink";
 
-import {
-  dryRunPacman,
-  installPacmanPackages,
-  removePacmanPackages,
-} from "#/backend/pacman";
 import {
   dryRunAurPackages,
   installAurPackages,
   removeAurPackages,
 } from "#/backend/aur";
+import {
+  installSystemFlatpakPackages,
+  installUserFlatpakPackages,
+  removeSystemFlatpakPackages,
+  removeUserFlatpakPackages,
+} from "#/backend/flatpak";
+import {
+  dryRunPacman,
+  installPacmanPackages,
+  removePacmanPackages,
+} from "#/backend/pacman";
 
 import { validateCommand } from "./validate";
-import type { Config } from "#/lib/schema";
+
+import type { Config } from "#/core/config/schema";
 
 type SwitchSymlink = Config["mkSymlink"];
-type SwitchMountDrive = Config["diskMount"];
+type SwitchMountDrive = Config["mountDrive"];
 type SwitchDefaultApp = Config["defaults"];
 type SwitchPackage = Config["packages"];
 
@@ -52,20 +67,26 @@ export async function switchCommand(
   dir?: string,
   options?: SwitchOptions,
 ): Promise<void> {
-  const resolvedDir: string = dir ? await resolvePath(dir) : process.cwd();
-  const configPath: string = await getConfigPath(resolvedDir);
-  const HOME_PATH: string = await getHomeDirectory();
+  const resolvedDir = dir ? await resolvePath(dir) : process.cwd();
+  const configPath = await getConfigPath(resolvedDir);
+  const HOME_PATH = await getHomeDirectory();
+  const isConfig = await exists(configPath);
 
   if (!dir) {
     logger.warn(
       `No directory specified, using current working directory (${resolvedDir})`,
     );
-    // return;
   }
+
+  if (!isConfig) {
+    abort("Config file not found");
+  }
+
   logger.info(`Switching to new hofi configuration (${configPath})`);
 
   if (options?.dryRun) {
     logger.info(`Dry run: not switching to new configuration`);
+    return;
   }
 
   // Detect System Environment
@@ -77,23 +98,22 @@ export async function switchCommand(
   }
 
   if (!envSystem.pacman) {
-    logger.error(`No pacman detected, Aborting.`);
-    process.exit(1);
+    abort("No pacman detected, Aborting.");
   }
 
   // Parse Config and Validate
   const parsedConfig: Config | undefined = await validateCommand(resolvedDir);
 
   if (!parsedConfig) {
-    logger.error("Error parse config. Aborting process");
-    process.exit(1);
+    abort("Error parse config. Aborting process");
   }
 
   // Destructure config fields
-  const { packages, mkSymlink, defaults, diskMount } = parsedConfig;
+  const { packages, mkSymlink, defaults, mountDrive } = parsedConfig;
+
   await Promise.all([
     switchSymlink(mkSymlink),
-    switchMountDrive(diskMount),
+    switchMountDrive(mountDrive),
     switchDefaultApp(defaults, HOME_PATH),
   ]);
 
@@ -153,8 +173,8 @@ async function switchDefaultApp(config: SwitchDefaultApp, homePath: string) {
     if (backupPath) logger.info(`Backup created: ${backupPath}`);
   }
 
-  const defaultApps: DefaultMimeApp = apps
-    ? await resolveDefaultMimeApp(apps)
+  const defaultApps = apps
+    ? ((await resolveDefaultMimeApp(apps, "object")) as Record<string, string>)
     : {};
 
   const resultMimeApps: MimeApps = {
@@ -168,7 +188,7 @@ async function switchDefaultApp(config: SwitchDefaultApp, homePath: string) {
   };
 
   const serializedResultMimeApps: string = serializeMimeApps(resultMimeApps);
-  await createFile(
+  await writeFile(
     serializedResultMimeApps,
     `${homePath}/.config/mimeapps2.list`,
   );
@@ -185,16 +205,14 @@ async function switchPackage(config: SwitchPackage, options?: SwitchOptions) {
 
   const { dryRun } = options ?? {};
 
-  const {
-    pacman: pacmanPackages,
-    aur: aurPackages,
-    flatpak: flatpakPackages,
-  } = config;
+  const { pacman = [], aur = [], flatpak } = config;
+  const pacmanPackages = new Set(pacman);
+  const aurPackages = new Set(aur);
 
   if (dryRun) {
     try {
-      if (aurPackages) await dryRunAurPackages(new Set(aurPackages));
-      await dryRunPacman(new Set(pacmanPackages));
+      if (aurPackages.size > 0) await dryRunAurPackages(aurPackages);
+      await dryRunPacman(pacmanPackages);
       logger.info("Dry run: success");
       return;
     } catch (e) {
@@ -203,9 +221,59 @@ async function switchPackage(config: SwitchPackage, options?: SwitchOptions) {
   }
 
   try {
-    await installPacmanPackages(new Set(pacmanPackages));
-    await installAurPackages(new Set(aurPackages));
+    const pacmanResult = await switchPacman(new Set(pacmanPackages));
+    const aurResult = await switchAur(new Set(aurPackages));
+    const flatpakResult = await switchFlatpak(flatpak);
+    if (pacmanResult) printDiffResult(pacmanResult, "pacman");
+    if (aurResult) printDiffResult(aurResult, "aur");
+    if (flatpakResult) {
+      printDiffResult(flatpakResult.user, "flatpak (user)");
+      printDiffResult(flatpakResult.system, "flatpak (system)");
+    }
   } catch (e) {
-    throw new Error(`Failed to install packages: ${String(e)}`);
+    throw new Error(`Failed to install packages: ${e}`);
   }
+}
+
+// Switch pacman packages.
+async function switchPacman(
+  pacmanPackages: Set<string>,
+): Promise<DiffResult | undefined> {
+  if (!pacmanPackages.size) return;
+  const { added, removed } = await diffInstalledPacmanPackages(pacmanPackages);
+  await installPacmanPackages(added);
+  await removePacmanPackages(removed);
+  return { added, removed };
+}
+
+// Switch AUR packages.
+async function switchAur(
+  aurPackages: Set<string>,
+): Promise<DiffResult | undefined> {
+  if (!aurPackages.size) return;
+  const { added, removed } = await diffInstalledAurPackages(aurPackages);
+  await installAurPackages(added);
+  await removeAurPackages(removed);
+  return { added, removed };
+}
+
+// Switch Flatpak packages.
+async function switchFlatpak(
+  config: { user?: string[]; system?: string[] } | undefined,
+): Promise<{ user: DiffResult; system: DiffResult } | undefined> {
+  if (!config) return;
+
+  const { user = [], system = [] } = config;
+
+  const userResult = await diffInstalledFlatpakUserPackages(new Set(user));
+  await installUserFlatpakPackages(userResult.added);
+  await removeUserFlatpakPackages(userResult.removed);
+
+  const systemResult = await diffInstalledFlatpakSystemPackages(
+    new Set(system),
+  );
+  await installSystemFlatpakPackages(systemResult.added);
+  await removeSystemFlatpakPackages(systemResult.removed);
+
+  return { user: userResult, system: systemResult };
 }

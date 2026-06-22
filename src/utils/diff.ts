@@ -1,8 +1,12 @@
 import { getPacmanPackages } from "#/backend/pacman";
 import { getAurPackages } from "#/backend/aur";
+import {
+  getUserFlatpakPackages,
+  getSystemFlatpakPackages,
+} from "#/backend/flatpak";
 import { logger } from "./logger";
 
-type DiffResult = {
+export type DiffResult = {
   added: string[];
   removed: string[];
 };
@@ -27,22 +31,33 @@ export function diffPkgs(
 /**
  * Prints the diff result to the console.
  */
-export function printDiffResult(result: DiffResult) {
+export function printDiffResult(result: DiffResult, scope: string = "pkg") {
   const { added: addedPackages, removed: removedPackages } = result;
   if (addedPackages.length === 0 && removedPackages.length === 0) {
-    logger.info("No changes");
+    logger.info(`No changes ${scope}`);
     return;
   }
   if (addedPackages.length > 0) {
-    logger.info("Added packages:");
-    addedPackages.forEach((pkg) => logger.add(`${pkg}`));
-    console.log();
+    addedPackages.forEach((pkg) =>
+      logger.custom(`${pkg}`, {
+        label: "A.",
+        color: "green",
+        timestamp: false,
+        scope,
+      }),
+    );
   }
   if (removedPackages.length > 0) {
-    logger.info("Removed packages:");
-    removedPackages.forEach((pkg) => logger.remove(`${pkg}`));
-    console.log();
+    removedPackages.forEach((pkg) =>
+      logger.custom(`${pkg}`, {
+        label: "R.",
+        color: "red",
+        timestamp: false,
+        scope,
+      }),
+    );
   }
+  console.log();
 }
 
 /**
@@ -68,12 +83,27 @@ export async function diffInstalledAurPackages(
 }
 
 /**
- * Compares the installed Flatpak packages with the new packages and returns the added and removed packages.
+ * Compares the installed user Flatpak packages with the new packages and returns the added and removed packages.
  * @returns A promise that resolves added and removed packages.
  */
-export function diffFlatpakPackages(
-  oldPackages: Set<string>,
+export async function diffInstalledFlatpakUserPackages(
   newPackages: Set<string>,
-): DiffResult {
-  return diffPkgs(oldPackages, newPackages);
+): Promise<DiffResult> {
+  const oldFlatpakPackages: Set<string> = new Set(
+    await getUserFlatpakPackages(),
+  );
+  return diffPkgs(oldFlatpakPackages, newPackages);
+}
+
+/**
+ * Compares the installed system Flatpak packages with the new packages and returns the added and removed packages.
+ * @returns A promise that resolves added and removed packages.
+ */
+export async function diffInstalledFlatpakSystemPackages(
+  newPackages: Set<string>,
+): Promise<DiffResult> {
+  const oldFlatpakPackages: Set<string> = new Set(
+    await getSystemFlatpakPackages(),
+  );
+  return diffPkgs(oldFlatpakPackages, newPackages);
 }
