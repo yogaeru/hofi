@@ -1,18 +1,25 @@
 import { logger } from "#/utils/logger";
-import { createFileConfig } from "#/utils/create";
-import { configPackagesTemplate, configMimeAppsTemplate } from "#/lib/template";
+import { writeFile } from "#/utils/write";
+import { abortIfRunWithSudo } from "#/utils/abort";
+import {
+  configPackagesTemplate,
+  configMimeAppsTemplate,
+} from "#/core/config/template";
 
+/**
+ * Command to initialize a project with a basic template based on system
+ */
 export async function initCommnad() {
+  abortIfRunWithSudo();
   logger.info("Creating Project With Template");
 
-  const config = await configPackagesTemplate();
-  // console.log(config)
-
-  const mimeAppsConfig = await configMimeAppsTemplate();
-  // console.log(mimeAppsConfig)
+  const [config, mimeAppsConfig] = await Promise.all([
+    configPackagesTemplate(),
+    configMimeAppsTemplate(),
+  ]);
 
   await Promise.all([
-    createFileConfig(config, `hofi/generated/config.toml`),
-    createFileConfig(mimeAppsConfig, `hofi/generated/mimeapps.toml`),
+    writeFile(config, "hofi/config.toml"),
+    writeFile(mimeAppsConfig, "hofi/mimeapps.toml"),
   ]);
 }

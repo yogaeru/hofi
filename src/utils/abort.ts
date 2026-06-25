@@ -7,7 +7,7 @@ export function abortIfRunWithSudo() {
   }
 }
 
-export function abort(message: string): never {
+export function abort(message: string | Error | unknown): never {
   logger.error(message);
   process.exit(1);
 }
