@@ -1,5 +1,9 @@
 import { $ } from "bun";
-import { configMountDiskTemplate } from "#/lib/template";
+import { abort } from "#/utils/abort";
+import { logger } from "#/utils/logger";
+import { spawnInteractive } from "#/utils/spawn";
+import { makeDir, removeDir, removeFile } from "#/utils/path";
+import { configMountDiskTemplate } from "#/core/config/template";
 
 export type MountDiskOptions = {
   description: string;
@@ -14,33 +18,52 @@ export type MountDiskConfig = Record<string, MountDiskOptions>;
 /**
  * Creates, enables, and starts systemd mount units for the provided disk config.
  * @param options Mount points mapped to mount unit options.
- * @returns Promise
  */
 export async function mountDisk(options: MountDiskConfig): Promise<void> {
-  const templates: string[][] = await Promise.all(
-    Object.entries(options).map(
-      async ([name, config]: [string, MountDiskOptions]): Promise<[string, string]> => {
-        const fileName = `${parseMountPoint(name).replaceAll("/", "-")}.mount`;
-        const template = await configMountDiskTemplate(name, config);
-        return [fileName, template];
-      },
-    ),
+  // Test mounting disk before creating systemd unit files
+  for (const [name, { type, uuid }] of Object.entries(options)) {
+    await testMount(name, type, uuid);
+  }
+
+  const templates = Object.entries(options).map(
+    ([name, config]: [string, MountDiskOptions]): [string, string] => {
+      const fileName = `${parseMountPoint(name).replaceAll("/", "-")}.mount`;
+      const template = configMountDiskTemplate(name, config);
+      return [fileName, template];
+    },
   );
 
-  await Promise.all(
-    templates.map(async ([fileName, template]: string[]): Promise<void> => {
-      await $`printf ${template} | sudo tee /etc/systemd/system/${fileName}`;
-      await $`sudo systemctl daemon-reload`;
-      await $`sudo systemctl enable --now ${fileName}`;
+  const services = await Promise.all(
+    templates.map(async ([fileName, template]) => {
+      await $`printf ${template} | sudo tee /etc/systemd/system/${fileName}`.quiet();
+      return fileName;
     }),
   );
+
+  try {
+    await $`sudo systemctl daemon-reload`;
+    await $`sudo systemctl enable --now ${services.join(" ")}`;
+  } catch (error) {
+    for (const service of services) {
+      await removeFile(`/etc/systemd/system/${service}`, true);
+    }
+    abort(`Error enabling systemd units for mount points`);
+  }
 }
 
-/**
- * Normalizes a mount point into a unit-friendly name fragment
- * @param mountPoint The filesystem mount point.
- * @returns The trimmed mount point without leading or trailing slashes.
- */
+async function testMount(mountPoint: string, type: string, uuid: string) {
+  await makeDir(mountPoint, true);
+  try {
+    await spawnInteractive(["sudo", "mount", "-t", type, `/dev/disk/by-uuid/${uuid}`, mountPoint]);
+    await $`sudo umount ${mountPoint}`;
+    await removeDir(mountPoint, true);
+  } catch (error) {
+    await removeDir(mountPoint, true);
+    logger.error(error)
+    abort(`Failed to mount ${mountPoint} (${type}, ${uuid})`);
+  }
+}
+
 function parseMountPoint(mountPoint: string): string {
   return mountPoint.replace(/^\/+|\/+$/g, "");
 }

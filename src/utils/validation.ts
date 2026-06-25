@@ -1,41 +1,36 @@
 import { $ } from "bun";
 import { exists, resolvePath } from "./path";
-import type { SymlinkConfig } from "#/core/symlink";
 import type { MountDiskConfig, MountDiskOptions } from "#/core/mount";
+import type { Symlink } from "#/core/config/schema";
 
 /**
  * Validates the symlink configuration.
  * @param config pair of target and symlink paths
  * @throws {Error} if the target and symlink are the same, or if the target does not exist
- * @returns Promise
  */
-export async function validateSymlink(config: SymlinkConfig | undefined) {
+export async function validateSymlink(config: Symlink | undefined) {
   if (!config) return;
-  const errorMsg: string[] = [];
-  await Promise.all(
-    Object.entries(config).map(
-      async ([target, symlink]: [string, string]): Promise<void> => {
+  const errMsg = (
+    await Promise.all(
+      Object.entries(config).map(async ([_, { target, link }]) => {
         const [resolvedTarget, resolvedSymlink] = await Promise.all([
           resolvePath(target),
-          resolvePath(symlink),
+          resolvePath(link),
         ]);
 
-        if (resolvedTarget === resolvedSymlink) {
+        if (resolvedTarget === resolvedSymlink)
           throw new Error(
-            `Target and symlink cannot be the same: ${target} -> ${symlink}`,
+            `Target and symlink cannot be the same: ${target} -> ${link}`,
           );
-        }
 
         const isTargetExist = await exists(resolvedTarget);
-        if (!isTargetExist) {
-          errorMsg.push(` - ${target}`);
-        }
-      },
-    ),
-  );
+        if (!isTargetExist) return ` - ${target}`;
+      }),
+    )
+  ).filter(Boolean);
 
-  if (errorMsg.length > 0) {
-    throw new Error(`Target does not exist: ${errorMsg.join("\n")}`);
+  if (errMsg.length > 0) {
+    throw new Error(`Target does not exist: ${errMsg.join("\n")}`);
   }
 }
 
@@ -44,7 +39,6 @@ export async function validateSymlink(config: SymlinkConfig | undefined) {
  * @param packages list of package names
  * @param packageManager package manager to use
  * @throws {Error} if any package is not found
- * @returns Promise
  */
 export async function validatePackages(
   packages: string[] | undefined,
@@ -82,7 +76,6 @@ export async function validatePackages(
  * Validates the mount disk configuration.
  * @param config
  * @throws {Error} if the mount point already exists
- * @returns Promise
  */
 export async function validateMountDisk(config: MountDiskConfig | undefined) {
   if (!config) return;
