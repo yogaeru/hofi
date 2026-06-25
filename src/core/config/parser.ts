@@ -1,7 +1,9 @@
 import { resolve, dirname } from "node:path";
+import { resolvePath } from "#/utils/path";
 import { type Config } from "./schema";
 
 type ConfigToml = Record<string, any>;
+type ConfigSymlink = Config["symlink"];
 
 /**
  * Parses a TOML configuration file and recursively merges included configs.
@@ -16,7 +18,7 @@ export async function parseConfigTOML(
   visitedPaths = new Set<string>(),
 ): Promise<any> {
   const absoluteFilePath = resolve(filePath);
-
+  // console.log("Absolute Path: ", absoluteFilePath);
   if (visitedPaths.has(absoluteFilePath)) {
     throw new Error(`Circular dependency detected: ${absoluteFilePath}`);
   }
@@ -25,14 +27,21 @@ export async function parseConfigTOML(
   const content = await Bun.file(absoluteFilePath).text();
   const parsedConfig = Bun.TOML.parse(content) as Config;
 
-  const includedSources = parsedConfig.sources?.include ?? Array.from([]);
-  delete parsedConfig.sources;
+  const { includes: includedSources = [], symlink: symlinkConfig = {} } =
+    parsedConfig;
+  delete parsedConfig.includes;
+
+  const parentAbsouleDir = dirname(absoluteFilePath);
+  parsedConfig.symlink = expandSymlinkPath(parentAbsouleDir, symlinkConfig);
 
   let mergedParentConfigs = {};
 
   for (const includedPath of includedSources) {
     const absoluteChildPath = resolve(dirname(absoluteFilePath), includedPath);
-    const parsedChildConfig = await parseConfigTOML(absoluteChildPath, visitedPaths);
+    const parsedChildConfig = await parseConfigTOML(
+      absoluteChildPath,
+      visitedPaths,
+    );
     mergedParentConfigs = mergeConfig(mergedParentConfigs, parsedChildConfig);
   }
 
@@ -46,18 +55,30 @@ export async function parseConfigTOML(
  * @param incomingConfig The configuration object to merge in.
  * @returns The merged configuration object.
  */
-function mergeConfig(baseConfig: ConfigToml, incomingConfig: ConfigToml): ConfigToml {
+function mergeConfig(
+  baseConfig: ConfigToml,
+  incomingConfig: ConfigToml,
+): ConfigToml {
   const mergedResult = { ...baseConfig };
 
   for (const configKey in incomingConfig) {
-    if (isPlainObject(mergedResult[configKey]) && isPlainObject(incomingConfig[configKey])) {
-      mergedResult[configKey] = mergeConfig(mergedResult[configKey], incomingConfig[configKey]);
+    if (
+      isPlainObject(mergedResult[configKey]) &&
+      isPlainObject(incomingConfig[configKey])
+    ) {
+      mergedResult[configKey] = mergeConfig(
+        mergedResult[configKey],
+        incomingConfig[configKey],
+      );
     } else {
       mergedResult[configKey] = incomingConfig[configKey];
     }
   }
   return mergedResult;
 }
+
+// Exported for testing
+export { mergeConfig, isPlainObject };
 
 /**
  * Checks if a value is a plain JavaScript object (not null, not an array).
@@ -67,4 +88,24 @@ function mergeConfig(baseConfig: ConfigToml, incomingConfig: ConfigToml): Config
  */
 function isPlainObject(value: any): boolean {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function expandSymlinkPath(
+  filePath: string,
+  config: ConfigSymlink | undefined,
+): ConfigSymlink {
+  if (!config) return {};
+  const result: ConfigSymlink = {};
+  for (const symlinkName in config) {
+    const data = config[symlinkName];
+    if (!data) continue;
+    const { target, link } = data;
+    const expandTargetPath = resolve(filePath, target);
+    const expandLinkPath = resolvePath(link);
+    result[symlinkName] = {
+      target: expandTargetPath,
+      link: expandLinkPath,
+    };
+  }
+  return result;
 }

@@ -1,100 +1,86 @@
 import { $ } from "bun";
-import { exists, resolvePath, createBackupConfig } from "#/utils/path";
+import * as fs from "node:fs/promises";
 import { logger } from "#/utils/logger";
+import { type Config } from "./config/schema";
+import { exists, resolvePath, createBackupConfig } from "#/utils/path";
 
-/**
- * Creates symlinks based on the provided configuration.
- * @param config The configuration object where keys are target paths and values are symlink paths.
- * @returns A promise that resolves when all symlinks have been created or updated.
- */
-export async function mkSymlinkConfig(config: Record<string, string>) {
+export type ConfigSymlink = Config["symlink"];
+
+export type Symlink = {
+  target: string;
+  link: string;
+};
+
+type SymlinkTasks = {
+  backup: string[];
+  create: Symlink[];
+};
+
+export async function makeSymlink(config: ConfigSymlink) {
+  if (!config) return;
+  const tasks: SymlinkTasks = {
+    backup: [],
+    create: [],
+  };
+
   await Promise.all(
-    Object.entries(config).map(
-      async ([target, symlink]: [string, string]): Promise<void> => {
-        await syncSymlink(target, symlink);
-      },
-    ),
+    Object.entries(config).map(async ([name, symlink]: [string, Symlink]) => {
+      await classifySymlink(symlink, tasks);
+    }),
   );
+
+  const { backup, create } = tasks;
+  // logger.info(`Backup symlinks: ${backup}`);
+  // logger.info(`Create symlinks: ${create}`);
+
+  for (const linkPath of backup) {
+    const backupPath = await createBackupConfig(linkPath);
+    if (backupPath) logger.info(`Backup path: ${backupPath}`);
+  }
+
+  for (const { target, link } of create) {
+    await ensureSymlink(target, link);
+  }
 }
 
-/**
- * Synchronizes a symlink from `target` to `symlink`, creating or updating it as necessary.
- * @param target The target path to link to.
- * @param symlink The symlink path to create or update.
- * @returns A promise that resolves when the symlink has been synchronized.
- */
-async function syncSymlink(target: string, symlink: string) {
-  const [resolvedTarget, resolvedSymlink] = await Promise.all([
-    resolvePath(target),
-    resolvePath(symlink),
+async function classifySymlink(symlink: Symlink, tasks: SymlinkTasks) {
+  const { target, link } = symlink;
+
+  const targetExists = await exists(target);
+  const linkExists = await exists(link);
+
+  if (!targetExists) throw new Error(`Target path does not exist: ${target}`);
+
+  // console.log("Link EXIST: ", linkExists);
+  if (linkExists) tasks.backup.push(link);
+
+  tasks.create.push(symlink);
+}
+
+async function ensureSymlink(target: string, link: string) {
+  let recreate = false;
+  const [isLink, isBroken] = await Promise.all([
+    isSymlink(link),
+    isBrokenSymlink(link),
   ]);
-
-  const [brokenSymlink, symlinkExist, isTargetPathExist, isSymlinkPathExist] =
-    await Promise.all([
-      isBrokenSymlink(resolvedSymlink),
-      isSymlink(resolvedSymlink),
-      exists(resolvedTarget),
-      exists(resolvedSymlink),
-    ]);
-
-  if (!isTargetPathExist) {
-    throw new Error(`Target path does not exist: ${resolvedTarget}`);
+  // if (isLink) {
+  //   logger.warn(`Symlink already exist and not broken, skip create - ${link}`);
+  //   return;
+  // }
+  if (isBroken || isLink) {
+    await fs.unlink(link);
+    logger.warn(`Recreate symlink: ${target} -> ${link}`);
+    recreate = true;
   }
-
-  if (symlinkExist) return;
-
-  if (brokenSymlink) {
-    await recreateSymlink(target, symlink);
-    logger.info(`RECREATE SYMLINK: ${resolvedTarget} -> ${resolvedSymlink}`);
-    return;
-  }
-
-  if (isSymlinkPathExist) {
-    const archive: string = await createBackupConfig(resolvedSymlink);
-    if (archive) logger.info(`BACKUP: ${resolvedSymlink} -> ${archive}`);
-  }
-
-  await createSymlink(resolvedTarget, resolvedSymlink);
-  logger.info(`SYMLINK: ${resolvedTarget} -> ${resolvedSymlink}`);
-}
-
-/**
- *  Create a symlink from `target` to `symlink`.
- * @param target
- * @param symlink
- * @returns Boolean indicating whether the symlink was created successfully.
- */
-export async function createSymlink(target: string, symlink: string) {
-  try {
-    await $`ln -s ${target} ${symlink}`;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Recreate a symlink from `target` to `symlink`.
- * @param target
- * @param symlink
- * @returns Boolean indicating whether the symlink was recreated successfully.
- */
-export async function recreateSymlink(target: string, symlink: string) {
-  try {
-    await $`ln -sfn ${target} ${symlink}`;
-    return true;
-  } catch {
-    return false;
-  }
+  await fs.symlink(target, link);
+  if (!recreate) logger.info(`Creating symlink: ${target} -> ${link}`);
 }
 
 /**
  * Check if a symlink is broken.
- * @param symlink
- * @returns Boolean indicating whether the symlink is broken.
  */
 async function isBrokenSymlink(symlink: string): Promise<boolean> {
-  const resolvedSymlink = await resolvePath(symlink);
+  const resolvedSymlink = resolvePath(symlink);
 
   try {
     await $`[ -L ${resolvedSymlink} ] && [ ! -e ${resolvedSymlink} ]`;
@@ -106,11 +92,9 @@ async function isBrokenSymlink(symlink: string): Promise<boolean> {
 
 /**
  * Check if a symlink is a symlink.
- * @param symlink
- * @returns Boolean indicating whether the symlink is a symlink.
  */
 async function isSymlink(symlink: string): Promise<boolean> {
-  const resolvedSymlink = await resolvePath(symlink);
+  const resolvedSymlink = resolvePath(symlink);
 
   try {
     await $`[ -L ${resolvedSymlink} ] && [ -e ${resolvedSymlink} ]`;

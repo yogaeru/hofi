@@ -27,8 +27,11 @@ export async function configPackagesTemplate(): Promise<string> {
     aurList,
     "]",
     "",
-    "[sources]",
-    'include = ["./mimeapps.toml"]',
+    "[packages.flatpak]",
+    "user = []",
+    "system = []",
+    "",
+    'includes = ["./mimeapps.toml"]',
   ].join("\n");
 }
 
@@ -38,10 +41,7 @@ export async function configPackagesTemplate(): Promise<string> {
  * @returns The default apps configuration template.
  */
 export function configDefaultAppsTemplate(browser: string): string {
-  return [
-    "[defaults.apps]",
-    `browser = "${browser}"`,
-  ].join("\n");
+  return ["[defaults.apps]", `browser = "${browser}"`].join("\n");
 }
 
 /**
@@ -70,25 +70,27 @@ export async function configMimeAppsTemplate(): Promise<string> {
  * Generates Symlink configuration template based on the user's symlinks.
  * @returns The Symlink configuration template as a string.
  */
-export async function configSymlinkTemplate(symlinks: Record<string, string>): Promise<string> {
+export async function configSymlinkTemplate(
+  symlinks: Record<string, { target: string; link: string }>,
+): Promise<string> {
   const symlinkConfig = Object.entries(symlinks)
-    .map(([target, source]) => `"${target}" = "${source}"`)
+    .map(
+      ([name, { target, link }]) =>
+        `${name} = { target = "${target}", link = "${link}" }`,
+    )
     .join("\n");
 
-  return [
-    "[mkSymlink]",
-    symlinkConfig,
-  ].join("\n");
+  return ["[symlink]", symlinkConfig].join("\n");
 }
 
 /**
  * Systemd Mount disk template
  * @returns The Systemd Mount disk configuration template as a string.
  */
-export async function configMountDiskTemplate(
+export function configMountDiskTemplate(
   mountPoint: string,
   diskOptions: MountDiskOptions,
-): Promise<string> {
+): string {
   const { description, uuid, type, options, wantedBy } = diskOptions;
 
   return [

@@ -1,12 +1,12 @@
 import { abort } from "#/utils/abort";
 import { writeFile } from "#/utils/write";
 import {
-  diffInstalledAurPackages,
-  diffInstalledFlatpakSystemPackages,
-  diffInstalledFlatpakUserPackages,
-  diffInstalledPacmanPackages,
-  printDiffResult,
   type DiffResult,
+  printDiffResult,
+  diffInstalledAurPackages,
+  diffInstalledPacmanPackages,
+  diffInstalledFlatpakUserPackages,
+  diffInstalledFlatpakSystemPackages,
 } from "#/utils/diff";
 import { logger } from "#/utils/logger";
 import {
@@ -24,7 +24,7 @@ import {
   type MimeApps,
 } from "#/core/mimeapps";
 import { mountDisk } from "#/core/mount";
-import { mkSymlinkConfig } from "#/core/symlink";
+import { makeSymlink } from "#/core/symlink";
 
 import {
   dryRunAurPackages,
@@ -47,11 +47,10 @@ import { validateCommand } from "./validate";
 
 import type { Config } from "#/core/config/schema";
 
-type SwitchSymlink = Config["mkSymlink"];
-type SwitchMountDrive = Config["mountDrive"];
+type SwitchMountDrive = Config["mounts"];
 type SwitchDefaultApp = Config["defaults"];
 type SwitchPackage = Config["packages"];
-
+type SwitchSymlink = Config["symlink"];
 type SwitchOptions = {
   dryRun?: boolean;
 };
@@ -67,9 +66,9 @@ export async function switchCommand(
   dir?: string,
   options?: SwitchOptions,
 ): Promise<void> {
-  const resolvedDir = dir ? await resolvePath(dir) : process.cwd();
+  const resolvedDir = dir ? resolvePath(dir) : process.cwd();
   const configPath = await getConfigPath(resolvedDir);
-  const HOME_PATH = await getHomeDirectory();
+  const HOME_PATH = getHomeDirectory();
   const isConfig = await exists(configPath);
 
   if (!dir) {
@@ -109,33 +108,31 @@ export async function switchCommand(
   }
 
   // Destructure config fields
-  const { packages, mkSymlink, defaults, mountDrive } = parsedConfig;
-
-  await Promise.all([
-    switchSymlink(mkSymlink),
-    switchMountDrive(mountDrive),
-    switchDefaultApp(defaults, HOME_PATH),
-  ]);
+  const { packages, defaults, mounts, symlink } = parsedConfig;
 
   await switchPackage(packages, options);
+  await Promise.all([
+    switchSymlink(symlink),
+    switchMountDrive(mounts),
+    switchDefaultApp(defaults, HOME_PATH),
+  ]);
 }
 
 ////////////////////////////////
 ///  HELPER FUNCTION SWITCH  ///
 ///////////////////////////////
-
 /**
  * Applies symlink configuration.
  *
- * @param config Symlink target mapping.
+ * @param config - The symlink configuration to apply.
  */
 async function switchSymlink(config: SwitchSymlink) {
   if (!config) return;
   try {
-    await mkSymlinkConfig(config);
-    logger.success("Succes created Symlinks");
+    await makeSymlink(config);
+    logger.success("Success switched symlink");
   } catch (e) {
-    throw new Error(`Failed to switch symlink: ${String(e)}`);
+    throw new Error(`Failed to switch symlink: ${e}`);
   }
 }
 
@@ -264,14 +261,14 @@ async function switchFlatpak(
   if (!config) return;
 
   const { user = [], system = [] } = config;
+  const userSet = new Set(user);
+  const systemSet = new Set(system);
 
-  const userResult = await diffInstalledFlatpakUserPackages(new Set(user));
+  const userResult = await diffInstalledFlatpakUserPackages(userSet);
   await installUserFlatpakPackages(userResult.added);
   await removeUserFlatpakPackages(userResult.removed);
 
-  const systemResult = await diffInstalledFlatpakSystemPackages(
-    new Set(system),
-  );
+  const systemResult = await diffInstalledFlatpakSystemPackages(systemSet);
   await installSystemFlatpakPackages(systemResult.added);
   await removeSystemFlatpakPackages(systemResult.removed);
 

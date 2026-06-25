@@ -1,6 +1,31 @@
+import { $ } from "bun";
 import * as fs from "node:fs/promises";
 import * as nodePath from "node:path";
 import { homedir } from "node:os";
+
+export async function makeDir(path: string, sudo = false): Promise<void> {
+  if (sudo) {
+    await $`sudo mkdir -p ${path}`;
+  } else {
+    await fs.mkdir(path, { recursive: true });
+  }
+}
+
+export async function removeDir(path: string, sudo = false): Promise<void> {
+  if (sudo) {
+    await $`sudo rm -rf ${path}`;
+  } else {
+    await fs.rm(path, { recursive: true, force: true });
+  }
+}
+
+export async function removeFile(path: string, sudo = false): Promise<void> {
+  if (sudo) {
+    await $`sudo rm -f ${path}`;
+  } else {
+    await fs.rm(path, { force: true });
+  }
+}
 
 /**
  * Gets the current working directory.
@@ -16,7 +41,7 @@ export async function getCurrentDirectory(): Promise<string> {
  *
  * @returns The absolute path to the home directory.
  */
-export async function getHomeDirectory(): Promise<string> {
+export function getHomeDirectory(): string {
   return homedir();
 }
 
@@ -91,11 +116,16 @@ export async function createBackupConfig(path: string) {
  * @param path The path to resolve (may start with `~`, `./`, or `../`).
  * @returns The resolved absolute path.
  */
-export async function resolvePath(path: string): Promise<string> {
+export function resolvePath(path: string): string {
   if (path.startsWith("~")) {
-    const homeDirectory = await getHomeDirectory();
+    const homeDirectory = getHomeDirectory();
     return nodePath.resolve(path.replace(/^~/, homeDirectory));
-  } else if (path.startsWith("./") || path.startsWith("../") || path === "." || path === "..") {
+  } else if (
+    path.startsWith("./") ||
+    path.startsWith("../") ||
+    path === "." ||
+    path === ".."
+  ) {
     return nodePath.resolve(process.cwd(), path);
   }
   return path;
@@ -107,9 +137,8 @@ export async function resolvePath(path: string): Promise<string> {
  * @param path The path to get the parent directory for.
  * @returns The parent directory path.
  */
-export async function getParentDirectory(path: string): Promise<string> {
-  const resolvedPath = await resolvePath(path);
-  return nodePath.dirname(resolvedPath);
+export function getParentDirectory(path: string): string {
+  return nodePath.dirname(resolvePath(path));
 }
 /**
  * Gets the path to the configuration file within a given directory.
