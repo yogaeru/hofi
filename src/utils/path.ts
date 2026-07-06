@@ -1,7 +1,7 @@
 import { $ } from "bun";
-import * as fs from "node:fs/promises";
-import * as nodePath from "node:path";
 import { homedir } from "node:os";
+import * as nodePath from "node:path";
+import * as fs from "node:fs/promises";
 
 export async function makeDir(path: string, sudo = false): Promise<void> {
   if (sudo) {
@@ -13,9 +13,9 @@ export async function makeDir(path: string, sudo = false): Promise<void> {
 
 export async function removeDir(path: string, sudo = false): Promise<void> {
   if (sudo) {
-    await $`sudo rm -rf ${path}`;
+    await $`sudo rmdir ${path}`;
   } else {
-    await fs.rm(path, { recursive: true, force: true });
+    await fs.rm(path);
   }
 }
 
@@ -128,7 +128,8 @@ export function resolvePath(path: string): string {
   ) {
     return nodePath.resolve(process.cwd(), path);
   }
-  return path;
+  return nodePath.resolve(path)
+  // return path;
 }
 
 /**
@@ -146,7 +147,7 @@ export function getParentDirectory(path: string): string {
  * @returns The path to the configuration file if it exists, otherwise throws an error.
  */
 export async function getConfigPath(path: string): Promise<string> {
-  const resolvedPath: string = await resolvePath(path);
+  const resolvedPath: string = resolvePath(path);
   const isPathExist: boolean = await exists(resolvedPath);
   if (!isPathExist) {
     throw new Error(`Path does not exist: ${resolvedPath}`);
