@@ -15,6 +15,7 @@ import { switchDefaultApp } from "./defaults";
 import { runScan } from "#/core/detect";
 import type { Config } from "#/core/config/schema";
 import { readMetadata, writeMetadata } from "#/core/metadata";
+import { printDiffTable } from "#/utils/flatten";
 
 type SwitchOptions = {
   dryRun?: boolean;
@@ -47,9 +48,13 @@ export async function switchCommand(
   const { packages, mounts, symlinks, defaults } = diff;
 
   // console.log(JSON.stringify(config, null, 2))
-  console.log(JSON.stringify(diff, null, 2));
+  // console.log(JSON.stringify(diff, null, 2));
   // console.log(JSON.stringify(defaults, null, 2))
-  // 
+  printDiffTable(diff);
+
+  const apply = prompt("Apply The Change ?") || "n";
+  if (apply?.toLowerCase() !== "y") return;
+  logger.info("Applying change...");
 
   await switchPackages(packages, options);
   await Promise.all([
