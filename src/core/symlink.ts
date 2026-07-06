@@ -4,7 +4,7 @@ import { logger } from "#/utils/logger";
 import { type Config } from "./config/schema";
 import { exists, resolvePath, createBackupConfig } from "#/utils/path";
 
-export type ConfigSymlink = Config["symlink"];
+export type ConfigSymlink = Config["symlinks"];
 
 export type Symlink = {
   target: string;
@@ -16,6 +16,17 @@ type SymlinkTasks = {
   create: Symlink[];
 };
 
+export async function removeSymlink(config: ConfigSymlink) {
+  if (!config) return;
+  for (const symlink of Object.values(config)) {
+    const { target, link } = symlink;
+    const isLink = await isSymlink(link);
+    if (!isLink) continue;
+    await fs.unlink(link);
+    logger.info(`Removed symlink: ${link}`);
+  }
+}
+
 export async function makeSymlink(config: ConfigSymlink) {
   if (!config) return;
   const tasks: SymlinkTasks = {
@@ -24,7 +35,7 @@ export async function makeSymlink(config: ConfigSymlink) {
   };
 
   await Promise.all(
-    Object.entries(config).map(async ([name, symlink]: [string, Symlink]) => {
+    Object.values(config).map(async (symlink: Symlink) => {
       await classifySymlink(symlink, tasks);
     }),
   );
@@ -41,6 +52,8 @@ export async function makeSymlink(config: ConfigSymlink) {
   for (const { target, link } of create) {
     await ensureSymlink(target, link);
   }
+
+  logger.success("Mount Drive suscces without errors")
 }
 
 async function classifySymlink(symlink: Symlink, tasks: SymlinkTasks) {
@@ -76,9 +89,6 @@ async function ensureSymlink(target: string, link: string) {
   if (!recreate) logger.info(`Creating symlink: ${target} -> ${link}`);
 }
 
-/**
- * Check if a symlink is broken.
- */
 async function isBrokenSymlink(symlink: string): Promise<boolean> {
   const resolvedSymlink = resolvePath(symlink);
 
@@ -90,9 +100,6 @@ async function isBrokenSymlink(symlink: string): Promise<boolean> {
   }
 }
 
-/**
- * Check if a symlink is a symlink.
- */
 async function isSymlink(symlink: string): Promise<boolean> {
   const resolvedSymlink = resolvePath(symlink);
 
