@@ -1,7 +1,12 @@
-import { getPacmanPackages } from "#/backend/pacman";
-import { getAurPackages } from "#/backend/aur";
-import { parseMimeApps } from "#/core/mimeapps";
 import { getHomeDirectory } from "#/utils/path";
+import {
+  getUserFlatpakPackages,
+  getSystemFlatpakPackages,
+} from "#/backend/flatpak";
+import { getAurPackages } from "#/backend/aur";
+import { getPacmanPackages } from "#/backend/pacman";
+
+import { parseMimeApps } from "#/core/mimeapps";
 import { type MountDiskOptions } from "#/core/mount";
 
 /**
@@ -9,15 +14,21 @@ import { type MountDiskOptions } from "#/core/mount";
  * @returns The packages configuration template as a string.
  */
 export async function configPackagesTemplate(): Promise<string> {
-  const [pacmanPkgs, aurPkgs] = await Promise.all([
+  const [pacmanPkgs, aurPkgs, flatpakUserPkgs, flatpakSystemPkgs] = await Promise.all([
     getPacmanPackages(),
     getAurPackages(),
+    getUserFlatpakPackages(),
+    getSystemFlatpakPackages(),
   ]);
 
   const pacmanList = pacmanPkgs.map((pkg) => `  "${pkg}"`).join(",\n");
   const aurList = aurPkgs.map((pkg) => `  "${pkg}"`).join(",\n");
+  const flatpakUser = flatpakUserPkgs.map((pkg) => `  "${pkg}"`).join(",\n");
+  const flatpakSystem = flatpakSystemPkgs.map((pkg) => `  "${pkg}"`).join(",\n");
+  
 
   return [
+    'includes = ["./mimeapps.toml"]',
     "[packages]",
     "pacman = [",
     pacmanList,
@@ -28,10 +39,13 @@ export async function configPackagesTemplate(): Promise<string> {
     "]",
     "",
     "[packages.flatpak]",
-    "user = []",
-    "system = []",
+    "user = [",
+    flatpakUser,
+    "]",
+    "system = [",
+    flatpakSystem,
+    "]",
     "",
-    'includes = ["./mimeapps.toml"]',
   ].join("\n");
 }
 
@@ -49,7 +63,7 @@ export function configDefaultAppsTemplate(browser: string): string {
  * @returns The MIME apps configuration template as a string.
  */
 export async function configMimeAppsTemplate(): Promise<string> {
-  const homeDir = await getHomeDirectory();
+  const homeDir = getHomeDirectory();
   const mimeAppsList = await parseMimeApps(`${homeDir}/.config/mimeapps.list`);
 
   const formatPairs = (record: Record<string, string>) =>
