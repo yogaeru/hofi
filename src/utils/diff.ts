@@ -1,6 +1,4 @@
 import { isDeepStrictEqual } from "node:util";
-
-import { logger } from "./logger";
 import { getAurPackages } from "#/backend/aur";
 import { getPacmanPackages } from "#/backend/pacman";
 import {
@@ -30,8 +28,8 @@ export type PackagesDiff = {
   pacman?: DiffPkgsResult;
   aur?: DiffPkgsResult;
   flatpak?: {
-    user: DiffPkgsResult;
-    system: DiffPkgsResult;
+    added: Record<string, string[]>;
+    removed: Record<string, string[]>;
   };
 };
 
@@ -186,15 +184,15 @@ export async function diffConfigWithMetadata(
     );
 
     if (flatpakUser || flatpakSystem) {
-      const user = {} as DiffPkgsResult;
-      const system = {} as DiffPkgsResult;
-      if (flatpakUser?.added.length) user.added = flatpakUser.added;
-      if (flatpakUser?.removed.length) user.removed = flatpakUser.removed;
-      if (flatpakSystem?.added.length) system.added = flatpakSystem.added;
-      if (flatpakSystem?.removed.length) system.removed = flatpakSystem.removed;
+      const added: Record<string, string[]> = {};
+      const removed: Record<string, string[]> = {};
+      if (flatpakUser?.added.length) added.user = flatpakUser.added;
+      if (flatpakUser?.removed.length) removed.user = flatpakUser.removed;
+      if (flatpakSystem?.added.length) added.system = flatpakSystem.added;
+      if (flatpakSystem?.removed.length) removed.system = flatpakSystem.removed;
 
-      if (Object.keys(user).length > 0 || Object.keys(system).length > 0) {
-        packages.flatpak = { user, system };
+      if (Object.keys(added).length > 0 || Object.keys(removed).length > 0) {
+        packages.flatpak = { added, removed };
       }
     }
 
@@ -279,41 +277,4 @@ export async function diffInstalledFlatpakSystemPackages(
     await getSystemFlatpakPackages(),
   );
   return diffPkgs(oldFlatpakPackages, newPackages);
-}
-
-// ── Display ──
-
-/**
- * Prints a `DiffPkgsResult` to the console with colored `A.` / `R.` labels.
- *
- * @param result - The diff result to display.
- * @param scope - An optional label for the section (default: `"pkg"`).
- */
-export function printDiffResult(result: DiffPkgsResult, scope: string = "pkg") {
-  const { added: addedPackages, removed: removedPackages } = result;
-  if (addedPackages.length === 0 && removedPackages.length === 0) {
-    logger.info(`No changes ${scope}`);
-    return;
-  }
-  if (addedPackages.length > 0) {
-    addedPackages.forEach((pkg) =>
-      logger.custom(`${pkg}`, {
-        label: "A.",
-        color: "green",
-        timestamp: false,
-        scope,
-      }),
-    );
-  }
-  if (removedPackages.length > 0) {
-    removedPackages.forEach((pkg) =>
-      logger.custom(`${pkg}`, {
-        label: "R.",
-        color: "red",
-        timestamp: false,
-        scope,
-      }),
-    );
-  }
-  console.log();
 }
