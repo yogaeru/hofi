@@ -1,24 +1,24 @@
 {
   "name": "hofi-cli",
-  "module": "index.ts",
-  "version": "0.0.4",
+  "version": "0.1",
   "type": "module",
   "private": false,
   "bin": {
-    "hofi": "./index.ts"
+    "hofi": "./dist/hofi.js"
   },
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "bun run index.ts",
     "build": "bun build index.ts --target=bun --minify --outfile dist/hofi.js",
     "compile": "bun build index.ts --compile --minify --outfile ./bin/hofi"
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
+    "@types/bun": "latest",
     "typescript": "^5"
   },
   "dependencies": {
