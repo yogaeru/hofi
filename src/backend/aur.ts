@@ -11,11 +11,6 @@ export async function getAurPackages() {
   return result.split("\n").filter(Boolean).sort();
 }
 
-export async function dryRunAurPackages(packages: Set<string>) {
-  logger.info(
-    `Dry run: would install AUR packages:\n${[...packages].join("\n   - ")}`,
-  );
-}
 
 /**
  * Install AUR packages on the system.
@@ -23,8 +18,8 @@ export async function dryRunAurPackages(packages: Set<string>) {
  * @param options
  * @returns
  */
-export async function installAurPackages(packages: Set<string>) {
-  if (packages.size === 0) return;
+export async function installAurPackages(packages: string[]) {
+  if (packages.length === 0) return;
 
   await spawnInteractive(
     ["paru", "-S", "--noconfirm", "--needed", ...packages],

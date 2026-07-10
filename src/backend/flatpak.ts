@@ -22,18 +22,7 @@ export async function getSystemFlatpakPackages(): Promise<string[]> {
   return result.split("\n").filter(Boolean).sort();
 }
 
-/**
- * Print packages would be installed.
- *
- * @param packages Application IDs to install.
- */
-export async function dryRunFlatpakPakcages(packages: string[]): Promise<void> {
-  if (packages.length === 0) return;
 
-  logger.info(
-    `Dry run: Would install flatpak packages:\n${packages.join("\n -- ")}`,
-  );
-}
 
 /**
  * Installs Flatpak packages for the current user.

@@ -57,7 +57,7 @@ export async function writeMetadata(
 ): Promise<void> {
   const jsonFileData = `${generateMetadataJson(config, env, configPath)}`;
 
-  const outputPath = `${dirname(configPath)}/hofi.json`;
+  const outputPath = `${dirname(configPath)}/hofi-lock.json`;
   await writeFile(jsonFileData, outputPath);
 }
 

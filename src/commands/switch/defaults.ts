@@ -23,7 +23,7 @@ export async function switchDefaultApp(
 
   const { apps, mime } = config;
 
-  const configPath = `${homePath}/.config/mimeapps2.list`;
+  const configPath = `${homePath}/.config/mimeapps.list`;
   const isConfigExists: boolean = await exists(configPath);
 
   if (isConfigExists) {
@@ -48,6 +48,6 @@ export async function switchDefaultApp(
   const serializedResultMimeApps: string = serializeMimeApps(resultMimeApps);
   await writeFile(
     serializedResultMimeApps,
-    `${homePath}/.config/mimeapps2.list`,
+    `${homePath}/.config/mimeapps.list`,
   );
 }

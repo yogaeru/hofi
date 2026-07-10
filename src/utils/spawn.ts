@@ -1,8 +1,8 @@
 
 /**
  * Spawn shell process
- * @param cmd 
- * @param errorMessage 
+ * @param cmd - The command to execute.
+ * @param errorMessage - The error message to throw if the command fails.
  */
 export async function spawnInteractive(
   cmd: string[],
@@ -17,7 +17,7 @@ export async function spawnInteractive(
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
     throw new Error(
-      errorMessage ?? `Command "${cmd[0]}" failed with exit code ${exitCode}`,
+      errorMessage ?? `Error caused with exit code ${exitCode}`,
     );
   }
 }

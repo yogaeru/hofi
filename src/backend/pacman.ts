@@ -17,13 +17,21 @@ export async function getPacmanPackages(): Promise<string[]> {
  * Dry-run install to detect conflicts before committing.
  * Returns true if there are no conflicts.
  */
-export async function dryRunPacman(packages: Set<string>): Promise<boolean> {
+export async function dryRunPacman(
+  packages: Set<string>,
+  quiet: boolean = false,
+): Promise<boolean> {
+  if (Array.isArray(packages)) return true;
   if (packages.size === 0) return true;
-  
+
   const packagesToInstall: string[] = [...packages];
 
   try {
-    await $`pacman -S --needed --noconfirm --print ${packagesToInstall}`.quiet();
+    if (quiet) {
+      await $`pacman -S --needed --noconfirm --print ${packagesToInstall}`.quiet();
+    } else {
+      await $`pacman -S --needed --noconfirm --print ${packagesToInstall}`;
+    }
     return true;
   } catch {
     return false;
@@ -35,12 +43,11 @@ export async function dryRunPacman(packages: Set<string>): Promise<boolean> {
  *
  * @param packages Package names to install.
  */
-export async function installPacmanPackages(
-  packages: Set<string>,
-): Promise<void> {
-  if (packages.size === 0) return;
+export async function installPacmanPackages(packages: string[]): Promise<void> {
+  if (packages.length === 0) return;
+  const packageSet = new Set(packages);
 
-  const ok = await dryRunPacman(packages);
+  const ok = await dryRunPacman(packageSet);
   if (!ok) {
     logger.warn(
       "Dry-run detected conflicts. Proceeding anyway — check output carefully.",
@@ -48,7 +55,7 @@ export async function installPacmanPackages(
   }
 
   await spawnInteractive(
-    ["sudo", "pacman", "-S", "--needed", ...packages],
+    ["sudo", "pacman", "-S", "--needed", ...packageSet],
     "Install pacman packages failed",
   );
 }
@@ -58,10 +65,8 @@ export async function installPacmanPackages(
  *
  * @param packages Package names to remove.
  */
-export async function removePacmanPackages(
-  packages: Set<string>,
-): Promise<void> {
-  if (packages.size === 0) return;
+export async function removePacmanPackages(packages: string[]) {
+  if (packages.length === 0) return;
 
   await spawnInteractive(
     ["sudo", "pacman", "-R", "--noconfirm", ...packages],

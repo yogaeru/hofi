@@ -1,3 +1,6 @@
+// - Restore mount points from systemd unit files done
+// -
+// -
 import { $ } from "bun";
 import { abort } from "#/utils/abort";
 import { logger } from "#/utils/logger";
@@ -42,8 +45,8 @@ export async function mountDisk(options: MountDiskConfig): Promise<void> {
             console.log();
             await removeFile(`/etc/systemd/system/${fileName}`, true);
           } catch (e) {
-            console.log()
-            console.error(e)
+            console.log();
+            console.error(e);
             abort(
               [
                 `Failed to remount ${mountPoint}.`,
@@ -58,8 +61,9 @@ export async function mountDisk(options: MountDiskConfig): Promise<void> {
         return [fileName, template];
       },
     ),
-  );
+  ); // end templates
 
+  // Create systemd unit files for each mount point
   const services = await Promise.all(
     templates.map(async ([fileName, template]) => {
       await $`printf ${template} | sudo tee /etc/systemd/system/${fileName}`.quiet();

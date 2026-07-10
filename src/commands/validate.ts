@@ -1,3 +1,4 @@
+import { abort } from "#/utils/abort";
 import { logger } from "#/utils/logger";
 import { parseConfigTOML } from "#/core/config/parser";
 import { resolvePath, getConfigPath } from "#/utils/path";
@@ -30,15 +31,15 @@ export async function validateCommand(
     logger.info("Parsing configuration file...  " + configPath);
     const configTOML = await parseConfigTOML(configPath);
     const result: Config = ConfigSchema.parse(configTOML);
-    // console.log(result.symlink)
+    // console.log(result.symlinks);
 
-    const { mounts, packages, symlink } = result;
+    const { mounts, packages, symlinks } = result;
 
     await Promise.all([
-      validateSymlink(symlink),
+      validateSymlink(symlinks),
       validateMountDisk(mounts),
-      validatePackages(packages?.pacman, "pacman"),
       validatePackages(packages?.aur, "paru"),
+      validatePackages(packages?.pacman, "pacman"),
       validatePackages(packages?.flatpak?.user, "flatpak"),
       validatePackages(packages?.flatpak?.system, "flatpak"),
     ]);
@@ -46,6 +47,6 @@ export async function validateCommand(
     logger.success("Validation successful, no errors found");
     return result;
   } catch (error) {
-    logger.error(error);
+    abort(error);
   }
 }

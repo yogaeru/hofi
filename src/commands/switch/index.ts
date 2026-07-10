@@ -1,5 +1,6 @@
 import { logger } from "#/utils/logger";
-import { attempt, abort } from "#/utils/abort";
+import { abort } from "#/utils/abort";
+import { printDiffTable } from "#/utils/flatten";
 import {
   exists,
   resolvePath,
@@ -7,15 +8,16 @@ import {
   getHomeDirectory,
 } from "#/utils/path";
 import { type ConfigDiff, diffConfigWithMetadata } from "#/utils/diff";
-import { validateCommand } from "../validate";
+
 import { switchSymlink } from "./links";
 import { switchPackages } from "./packages";
-import { switchMountDrive } from "./mountDrive";
+import { validateCommand } from "../validate";
 import { switchDefaultApp } from "./defaults";
+import { switchMountDrive } from "./mountDrive";
+
 import { runScan } from "#/core/detect";
 import type { Config } from "#/core/config/schema";
 import { readMetadata, writeMetadata } from "#/core/metadata";
-import { printDiffTable } from "#/utils/flatten";
 
 type SwitchOptions = {
   dryRun?: boolean;
@@ -46,17 +48,18 @@ export async function switchCommand(
   const envSystem = await runScan();
   const { config, diff } = await validateConfig(resolvedDir);
   const { packages, mounts, symlinks, defaults } = diff;
-
-  // console.log(JSON.stringify(config, null, 2))
-  // console.log(JSON.stringify(diff, null, 2));
-  // console.log(JSON.stringify(defaults, null, 2))
   printDiffTable(diff);
+  
+  if (Object.keys(diff).length === 0) {
+    logger.info("No changes to apply");
+    return;
+  }
 
   const apply = prompt("Apply The Change ?") || "n";
   if (apply?.toLowerCase() !== "y") return;
   logger.info("Applying change...");
 
-  await switchPackages(packages, options);
+  await switchPackages(packages);
   await Promise.all([
     switchSymlink(symlinks),
     switchMountDrive(mounts),
@@ -74,7 +77,7 @@ async function validateConfig(dir: string): Promise<{
   const parsedConfig: Config | undefined = await validateCommand(dir);
   if (!parsedConfig) abort("Error parse config. Aborting process");
 
-  const metadata: Config = await readMetadata(`${dir}/hofi.json`);
+  const metadata: Config = await readMetadata(`${dir}/hofi-lock.json`);
   const diff = await diffConfigWithMetadata(parsedConfig, metadata);
 
   return {

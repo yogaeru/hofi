@@ -3,7 +3,7 @@ import { resolvePath } from "#/utils/path";
 import { type Config } from "./schema";
 
 type ConfigToml = Record<string, any>;
-type ConfigSymlink = Config["symlink"];
+type ConfigSymlink = Config["symlinks"];
 
 /**
  * Parses a TOML configuration file and recursively merges included configs.
@@ -27,12 +27,12 @@ export async function parseConfigTOML(
   const content = await Bun.file(absoluteFilePath).text();
   const parsedConfig = Bun.TOML.parse(content) as Config;
 
-  const { includes: includedSources = [], symlink: symlinkConfig = {} } =
+  const { includes: includedSources = [], symlinks: symlinkConfig = {} } =
     parsedConfig;
   delete parsedConfig.includes;
 
   const parentAbsouleDir = dirname(absoluteFilePath);
-  parsedConfig.symlink = expandSymlinkPath(parentAbsouleDir, symlinkConfig);
+  parsedConfig.symlinks = expandSymlinkPath(parentAbsouleDir, symlinkConfig);
 
   let mergedParentConfigs = {};
 

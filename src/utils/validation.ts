@@ -1,7 +1,8 @@
 import { $ } from "bun";
+import { logger } from "./logger";
 import { exists, resolvePath } from "./path";
-import type { MountDiskConfig, MountDiskOptions } from "#/core/mount";
 import type { Symlink } from "#/core/config/schema";
+import type { MountDiskConfig, MountDiskOptions } from "#/core/mount";
 
 /**
  * Validates the symlink configuration.
@@ -32,6 +33,7 @@ export async function validateSymlink(config: Symlink | undefined) {
   if (errMsg.length > 0) {
     throw new Error(`Target does not exist: ${errMsg.join("\n")}`);
   }
+  logger.info(`Validation symlink passed`);
 }
 
 /**
@@ -70,6 +72,9 @@ export async function validatePackages(
   if (errorMsg.length > 0) {
     throw new Error(`Packages not found:\n${errorMsg.join("\n")}`);
   }
+  logger.info(
+    `Validation packages (${packageManager}) passed ${packages.length} packages`,
+  );
 }
 
 /**
@@ -89,14 +94,14 @@ export async function validateMountDisk(config: MountDiskConfig | undefined) {
   await Promise.all(
     Object.entries(config).map(
       async ([mountPoint, options]: [string, MountDiskOptions]) => {
-        const resolvedMountPoint: string = await resolvePath(mountPoint);
+        const resolvedMountPoint: string = resolvePath(mountPoint);
         const { uuid } = options;
 
         const isUUIDValid: boolean = UUID.includes(uuid);
-        const isMountPointExist: boolean = await exists(resolvedMountPoint);
+        // const isMountPointExist: boolean = await exists(resolvedMountPoint);
 
         if (!isUUIDValid) errorMsg.push(`UUID not found for ${mountPoint}`);
-        if (isMountPointExist) errorMsg.push(`${mountPoint} already exists`);
+        // if (isMountPointExist) errorMsg.push(`${mountPoint} already exists`);
       },
     ),
   );
@@ -104,6 +109,7 @@ export async function validateMountDisk(config: MountDiskConfig | undefined) {
   if (errorMsg.length > 0) {
     throw new Error(`Mount Drive validation failed: ${errorMsg.join("\n")}`);
   }
+  logger.info(`Validation drive mount passed`);
 }
 
 /**

@@ -5,6 +5,9 @@ node_modules
 .vscode
 .zed
 
+# publish
+.npmrc
+
 # tests
 tests
 hofi

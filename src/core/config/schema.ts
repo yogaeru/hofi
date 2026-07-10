@@ -91,7 +91,7 @@ export const ConfigSchema = z
     defaults: defaultsSchema,
     mounts: mountDriveSchema,
     includes: includesSchema,
-    symlink: symlinkSchema,
+    symlinks: symlinkSchema,
   })
   .partial()
   .strict();

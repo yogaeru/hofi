@@ -1,56 +1,31 @@
+#!/usr/bin/env bun
+
 import cac from "cac";
-
 import { logger } from "#/utils/logger";
-
 import { scanCommand } from "#/commands/scan";
 import { initCommnad } from "#/commands/init";
 import { validateCommand } from "#/commands/validate";
-import { switchCommand } from "#/commands/switch";
+import { switchCommand } from "#/commands/switch/index";
 
-import {
-  getPacmanPackages,
-  dryRunPacman,
-  installPacmanPackages,
-} from "#/backend/pacman";
+const PKG_VERSION = "0.0.1";
+const hofiCli = cac("hofi").version(PKG_VERSION);
 
-import { getCurrentDirectory } from "#/utils/path";
+// ── Commands ──
 
-const hofiCli = cac("hofi").version("0.1");
+hofiCli.command("scan", "Detect system environment").action(scanCommand);
 
-hofiCli.command("scan", "Detect system environment").action(async () => {
-  await scanCommand();
-  const packages = await getPacmanPackages();
-  logger.info("Pacman packages:");
-  console.log(packages.join("\n"));
-});
-
-//-------------------- Init ----------------------
-//
 hofiCli
   .command("init", "Initialize a new hofi project with a template")
-  .action(async () => {
-    await initCommnad();
-  });
+  .action(initCommnad);
 
 hofiCli
-  .command("validate", "Validate the hofi project configuration")
-  .action(async () => {
-    await validateCommand();
-  });
+  .command("validate [configPath]", "Validate the hofi project configuration")
+  .action(validateCommand);
 
-// ---------------- SWITCH ----------------------
-//
 hofiCli
   .command("switch [dir]", "Switch to a different hofi project")
   .option("--dry-run", "Run the switch command without making any changes")
   .action(async (dir?: string, options?: { dryRun?: boolean }) => {
-    if (!dir) {
-      logger.error("No directory specified");
-      process.exit(1);
-    }
-    const cwd = await getCurrentDirectory();
-    // logger.info(`Current directory: ${cwd}`);
-    // console.log(dir, options)
     await switchCommand(dir, options);
   });
 
@@ -60,4 +35,5 @@ try {
   hofiCli.parse();
 } catch (error) {
   logger.error(String(error));
+  process.exit(1);
 }
