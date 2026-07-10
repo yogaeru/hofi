@@ -101,12 +101,8 @@ export async function createBackupConfig(path: string) {
   const existPath = await exists(backupPath);
   if (existPath) return "";
 
-  try {
-    await fs.rename(path, backupPath);
-    return backupPath;
-  } catch {
-    return "";
-  }
+  await fs.rename(path, backupPath);
+  return backupPath;
 }
 
 /**
@@ -128,7 +124,7 @@ export function resolvePath(path: string): string {
   ) {
     return nodePath.resolve(process.cwd(), path);
   }
-  return nodePath.resolve(path)
+  return nodePath.resolve(path);
   // return path;
 }
 

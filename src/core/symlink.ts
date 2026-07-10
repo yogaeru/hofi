@@ -1,6 +1,12 @@
+// - Restore and error handling done
+// -
+// -
 import { $ } from "bun";
 import * as fs from "node:fs/promises";
+
+import { abort } from "#/utils/abort";
 import { logger } from "#/utils/logger";
+import { getErrorCode } from "#/utils/error";
 import { type Config } from "./config/schema";
 import { exists, resolvePath, createBackupConfig } from "#/utils/path";
 
@@ -19,7 +25,7 @@ type SymlinkTasks = {
 export async function removeSymlink(config: ConfigSymlink) {
   if (!config) return;
   for (const symlink of Object.values(config)) {
-    const { target, link } = symlink;
+    const { link } = symlink;
     const isLink = await isSymlink(link);
     if (!isLink) continue;
     await fs.unlink(link);
@@ -27,12 +33,19 @@ export async function removeSymlink(config: ConfigSymlink) {
   }
 }
 
-export async function makeSymlink(config: ConfigSymlink) {
+/**
+ * Creates symlinks based on the provided configuration.
+ * @param config - The added symlink configuration to process.
+ */
+export async function makeSymlink(config: ConfigSymlink): Promise<void> {
   if (!config) return;
   const tasks: SymlinkTasks = {
     backup: [],
     create: [],
   };
+
+  const createdSymlinks: string[] = [];
+  const backupSymlinks: string[] = [];
 
   await Promise.all(
     Object.values(config).map(async (symlink: Symlink) => {
@@ -44,16 +57,43 @@ export async function makeSymlink(config: ConfigSymlink) {
   // logger.info(`Backup symlinks: ${backup}`);
   // logger.info(`Create symlinks: ${create}`);
 
-  for (const linkPath of backup) {
-    const backupPath = await createBackupConfig(linkPath);
-    if (backupPath) logger.info(`Backup path: ${backupPath}`);
+  try {
+    for (const linkPath of backup) {
+      const backupPath = await createBackupConfig(linkPath);
+      if (backupPath) logger.info(`Backup path: ${backupPath}`);
+      backupSymlinks.push(backupPath);
+    }
+
+    for (const { target, link } of create) {
+      await ensureSymlink(target, link);
+      createdSymlinks.push(link);
+    }
+  } catch (error) {
+    await restoreTasks(createdSymlinks, backupSymlinks);
+    abort(
+      `Error caused with code ${getErrorCode(error)}, restore applied config`,
+    );
   }
 
-  for (const { target, link } of create) {
-    await ensureSymlink(target, link);
+  logger.success("Symlinks created successfully");
+}
+
+/**
+ * Restores the symlinks to their original state by removing the created symlinks and restoring the backup symlinks.
+ */
+async function restoreTasks(create: string[], backup: string[]) {
+  for (const link of [...create].reverse()) {
+    await fs.rm(link, { force: true, recursive: true });
+    logger.info(`Removed: ${link}`);
   }
 
-  logger.success("Mount Drive suscces without errors")
+  for (const linkPath of [...backup].reverse()) {
+    if (!linkPath) continue;
+    const backupPath = `${linkPath}.bak`;
+    await fs.rename(backupPath, linkPath);
+    logger.info(`Restore: ${backupPath} -> ${linkPath}`);
+  }
+  logger.success("Symlinks restored successfully");
 }
 
 async function classifySymlink(symlink: Symlink, tasks: SymlinkTasks) {
