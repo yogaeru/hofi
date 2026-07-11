@@ -17,6 +17,7 @@ export type MountDiskOptions = {
 };
 
 export type MountDiskConfig = Record<string, MountDiskOptions>;
+const MOUNT_UNIT_DIR = "/etc/systemd/system";
 
 /**
  * Creates, enables, and starts systemd mount units for the provided disk config.
@@ -36,14 +37,17 @@ export async function mountDisk(options: MountDiskConfig): Promise<void> {
       > => {
         const template = configMountDiskTemplate(mountPoint, config);
         const fileName = `${parseMountPoint(mountPoint).replaceAll("/", "-")}.mount`;
+        const mountUnitPath = `${MOUNT_UNIT_DIR}/${fileName}`;
 
         const isMountPointExist: boolean = await exists(mountPoint);
-        if (isMountPointExist) {
+        const isMountUnitExist: boolean = await exists(mountUnitPath);
+
+        if (isMountPointExist && isMountUnitExist) {
           try {
             logger.warn(`Remount ${mountPoint}`);
             await $`sudo systemctl disable --now ${fileName}`;
             console.log();
-            await removeFile(`/etc/systemd/system/${fileName}`, true);
+            await removeFile(mountUnitPath, true);
           } catch (e) {
             console.log();
             console.error(e);
@@ -66,7 +70,7 @@ export async function mountDisk(options: MountDiskConfig): Promise<void> {
   // Create systemd unit files for each mount point
   const services = await Promise.all(
     templates.map(async ([fileName, template]) => {
-      await $`printf ${template} | sudo tee /etc/systemd/system/${fileName}`.quiet();
+      await $`printf ${template} | sudo tee ${MOUNT_UNIT_DIR}/${fileName}`.quiet();
       return fileName;
     }),
   );
@@ -77,7 +81,7 @@ export async function mountDisk(options: MountDiskConfig): Promise<void> {
     console.log();
   } catch (error) {
     for (const service of services) {
-      const mountPath = `/etc/systemd/system/${service}`;
+      const mountPath = `${MOUNT_UNIT_DIR}/${service}`;
       if (await exists(mountPath)) {
         await removeFile(mountPath, true);
       }
@@ -90,7 +94,7 @@ export async function mountDisk(options: MountDiskConfig): Promise<void> {
 export async function unmountDrive(config: MountDiskConfig) {
   for (const name of Object.keys(config)) {
     const service = `${parseMountPoint(name).replaceAll("/", "-")}.mount`;
-    const mountPath = `/etc/systemd/system/${service}`;
+    const mountPath = `${MOUNT_UNIT_DIR}/${service}`;
     await $`sudo systemctl disable --now ${service}`;
     if (await exists(mountPath)) {
       await removeFile(mountPath, true);
