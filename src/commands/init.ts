@@ -32,7 +32,7 @@ export async function initCommnad() {
 
   await Promise.all([
     writeFile(config, "hofi/config.toml"),
-    writeFile(mimeAppsConfig, "hofii/mimeapps.toml"),
-    writeMetadata(metadata, env, "hofii/hofi-lock.json"),
+    writeFile(mimeAppsConfig, "hofi/mimeapps.toml"),
+    writeMetadata(metadata, env, "hofi/hofi-lock.json"),
   ]);
 }
