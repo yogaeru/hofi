@@ -1,4 +1,5 @@
-import { $ } from "bun"; import { logger } from "#/utils/logger"; import { spawnInteractive } from "#/utils/spawn"; /**
+import { $ } from "bun";
+import { spawnInteractive } from "#/utils/spawn"; /**
  * Gets the list of user-installed Flatpak applications.
  *
  * @returns A sorted list of application IDs.
@@ -21,8 +22,6 @@ export async function getSystemFlatpakPackages(): Promise<string[]> {
     .text();
   return result.split("\n").filter(Boolean).sort();
 }
-
-
 
 /**
  * Installs Flatpak packages for the current user.

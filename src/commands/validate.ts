@@ -7,6 +7,7 @@ import {
   validateMountDisk,
   validatePackages,
 } from "#/utils/validation";
+import { getHofiEnvObject } from "#/core/env";
 import { ConfigSchema, type Config } from "#/core/config/schema";
 
 /**
@@ -31,22 +32,30 @@ export async function validateCommand(
     logger.info("Parsing configuration file...  " + configPath);
     const configTOML = await parseConfigTOML(configPath);
     const result: Config = ConfigSchema.parse(configTOML);
-    // console.log(result.symlinks);
 
     const { mounts, packages, symlinks } = result;
 
-    await Promise.all([
+    const { helperAur, isFlatpak } = getHofiEnvObject();
+
+    const validationTasks = [
       validateSymlink(symlinks),
       validateMountDisk(mounts),
-      validatePackages(packages?.aur, "paru"),
+      validatePackages(packages?.aur, helperAur),
       validatePackages(packages?.pacman, "pacman"),
-      validatePackages(packages?.flatpak?.user, "flatpak"),
-      validatePackages(packages?.flatpak?.system, "flatpak"),
-    ]);
+      ...(isFlatpak
+        ? [
+            validatePackages(packages?.flatpak?.user, "flatpak"),
+            validatePackages(packages?.flatpak?.system, "flatpak"),
+          ]
+        : []),
+    ];
+    
+    await Promise.all(validationTasks);
 
     logger.success("Validation successful, no errors found");
     return result;
   } catch (error) {
+    console.error(error);
     abort(error);
   }
 }

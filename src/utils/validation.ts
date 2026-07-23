@@ -4,6 +4,9 @@ import { exists, resolvePath } from "./path";
 import type { Symlink } from "#/core/config/schema";
 import type { MountDiskConfig, MountDiskOptions } from "#/core/mount";
 
+type AurHelper = "yay" | "paru" | "pikaur" | null;
+type PackageManager = AurHelper | "pacman" | "flatpak";
+
 /**
  * Validates the symlink configuration.
  * @param config pair of target and symlink paths
@@ -44,9 +47,10 @@ export async function validateSymlink(config: Symlink | undefined) {
  */
 export async function validatePackages(
   packages: string[] | undefined,
-  packageManager: "pacman" | "yay" | "paru" | "flatpak",
+  packageManager: PackageManager,
 ): Promise<void> {
   if (!packages) return;
+  if(!packageManager) return;
 
   const errorMsg: string[] = [];
 

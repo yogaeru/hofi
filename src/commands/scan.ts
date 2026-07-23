@@ -10,10 +10,10 @@ export async function scanCommand(): Promise<void> {
   const scanResult = await runScan();
 
   const doctorResult: string[] = [];
-  
+
   // OS Details
   doctorResult.push(`OS:               ${scanResult.os}`);
-  
+
   // Init System
   doctorResult.push(`Init System:      ${scanResult.initSystem}`);
 
@@ -21,11 +21,14 @@ export async function scanCommand(): Promise<void> {
   const pkgManagers: string[] = [];
   if (scanResult.pacman) pkgManagers.push("pacman");
   if (scanResult.flatpak) pkgManagers.push("flatpak");
-  const pkgStr = pkgManagers.length > 0 ? pkgManagers.join(", ") : "None detected";
+  const pkgStr =
+    pkgManagers.length > 0 ? pkgManagers.join(", ") : "None detected";
   doctorResult.push(`Pkg Managers:     ${pkgStr}`);
 
   // AUR Helper
-  doctorResult.push(`AUR Helper:       ${scanResult.aurHelper ?? "None detected"}`);
+  doctorResult.push(
+    `AUR Helper:       ${scanResult.aurHelper ?? "None detected"}`,
+  );
 
   // Sudo
   const sudoStatus: string[] = [];

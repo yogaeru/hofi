@@ -2,6 +2,7 @@ import { $ } from "bun";
 import * as fs from "node:fs/promises";
 import { exists } from "#/utils/path";
 import { logger } from "#/utils/logger";
+import { setHofiEnv } from "./env";
 
 export type DetectResult = {
   os: string;
@@ -55,7 +56,7 @@ async function getSudoInfo() {
     try {
       await $`sudo -n true`.quiet();
       passwordless = true;
-    } catch { }
+    } catch {}
   }
   const isRoot = process.getuid?.() === 0;
   return { available, passwordless, isRoot };
@@ -85,7 +86,7 @@ async function getOSName(): Promise<string> {
         }
       }
     }
-  } catch { }
+  } catch {}
   return name;
 }
 
@@ -111,6 +112,9 @@ export async function runScan(): Promise<DetectResult> {
     isFlatpak(),
     getSudoInfo(),
   ]);
+
+  setHofiEnv("isFlatpak", flatpak);
+  setHofiEnv("helperAur", aurHelper);
 
   return {
     os,

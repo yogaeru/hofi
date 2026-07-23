@@ -7,7 +7,7 @@ import { initCommnad } from "#/commands/init";
 import { validateCommand } from "#/commands/validate";
 import { switchCommand } from "#/commands/switch/index";
 
-const PKG_VERSION = "0.1.0";
+const PKG_VERSION = "0.1.2";
 const hofiCli = cac("hofi").version(PKG_VERSION);
 
 // ── Commands ──
